@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis-container
+        image: redis/redis-stack:latest
+        ports:
+        - name: redis
+          containerPort: 6379
+        - name: redis_interface
+          containerPort: 8001   
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-integrador
+spec:
+  selector:
+    app: redis-integrador
+  ports:
+  - port: 6379
+    targetPort: 6379
+  - port: 8001
+    targetPort: 8001
+  type: LoadBalancer
