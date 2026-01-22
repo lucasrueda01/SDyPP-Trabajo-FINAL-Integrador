@@ -1,6 +1,5 @@
 import hashlib
 import json
-import random
 import threading
 from flask import Flask, jsonify, request
 import pika
@@ -8,32 +7,17 @@ import redis
 import time
 from google.cloud import storage
 import uuid
+import config.settings as settings
+
 
 app = Flask(__name__)
 
-# VARIABLES
-
-hostRedis = "localhost"
-portRedis = 6379
-hostRabbit = "localhost"
-queueNameTx = "QueueTransactions"
-exchangeBlock = "ExchangeBlock"
-timer = 15
 datosBucket = []
-bucketName = "bucket_integrador2"
-credentialPath = "credentials.json"
-maxRandom = 99999999
-maxTransactionsPerBlock = 20
-prefijo = "00000000"
-baseStringChain = "A3F8"
-rabbitUser = "guest"
-rabbitPassword = "guest"
+
 
 # Conexion a Redis
-
-
 def redisConnect():
-    client = redis.Redis(host=hostRedis, port=portRedis, db=0)
+    client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
     print("[x] Conectado a Redis")
     return client
 
@@ -44,13 +28,14 @@ def redisConnect():
 def queueConnect():
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
-            host=hostRabbit, credentials=pika.PlainCredentials(rabbitUser, rabbitPassword)
+            host=settings.RABBIT_HOST,
+            credentials=pika.PlainCredentials(settings.RABBIT_USER, settings.RABBIT_PASSWORD),
         )
     )
     channel = connection.channel()
-    channel.queue_declare(queue=queueNameTx)
+    channel.queue_declare(queue=settings.QUEUE_NAME_TX)
     channel.exchange_declare(
-        exchange=exchangeBlock, exchange_type="topic", durable=True
+        exchange=settings.EXCHANGE_BLOCK, exchange_type="topic", durable=True
     )
     print(f"[x] Conectado a Rabbit-MQ")
     return connection, channel
@@ -65,8 +50,8 @@ def bucketConnect(bucketName, credentialPath):
 def encolar(transaction):
 
     jsonTransaction = json.dumps(transaction)
-    channel.basic_publish(exchange="", routing_key=queueNameTx, body=jsonTransaction)
-    print(f"[x] Se enconlo en {queueNameTx}: {transaction}")
+    channel.basic_publish(exchange="", routing_key=settings.QUEUE_NAME_TX, body=jsonTransaction)
+    print(f"[x] Se enconlo en {settings.QUEUE_NAME_TX}: {transaction}")
 
 
 # Validar que lo que me haya llegado es una transaccion
@@ -137,20 +122,24 @@ def descargarBlock(bucket, blockId):
 
     # Nombre del archivo en bucket
     fileName = f"block_{blockId}.json"
-
     # Obtener el blob (archivo) del bucket
     blob = bucket.blob(fileName)
-
     # Descargamos del bucket
     jsonBlock = blob.download_as_text()
 
     # Serializamos
-
     block = json.loads(jsonBlock)
 
-    print(f"[x] {blockId} Descaargo del Bucket")
+    print(f"[x] {blockId} Descargo del Bucket")
     return block
 
+def borrarBlock(bucket, blockId):
+    blob = bucket.blob(f"block_{blockId}.json")
+    try:
+        blob.delete()
+        print("Bloque borrado correctamente")
+    except Exception as e:
+        print(f"Ocurrió un error al borrar el bloque: {e}")
 
 @app.route("/transaction", methods=["POST"])
 def addTransaction():
@@ -203,7 +192,7 @@ def receive_solved_task():
                 jsonify({"message": "No se encontró un resultado valido » DESCARTADO"}),
                 202,
             )
-        bucket = bucketConnect(bucketName, credentialPath)
+        bucket = bucketConnect(settings.BUCKET_NAME, settings.CREDENTIALS_PATH)
         block = descargarBlock(bucket, data["blockId"])
         dataHash = (
             data["result"] + block["baseStringChain"] + block["blockchainContent"]
@@ -266,6 +255,7 @@ def receive_solved_task():
 
             postBlock(newBlock)
             print("[x] Bloque validado » Agregado a la blockchain")
+            borrarBlock(bucket, data["blockId"])
 
             return (
                 jsonify({"message": "Bloque validado » Agregado a la blockchain"}),
@@ -278,7 +268,6 @@ def receive_solved_task():
                 jsonify({"message": "El Hash recibido es invalido » DESCARTADO"}),
                 202,
             )
-        # Aquí puedes agregar la lógica de procesamiento de datos
 
     else:
         # Si no se reciben datos, responde con un error
@@ -292,8 +281,8 @@ def processPackages():
         print("---------------------------")
         print("")
         listaTransactions = []
-        for _ in range(maxTransactionsPerBlock):
-            method_frame, _, body = channel.basic_get(queue=queueNameTx)
+        for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
+            method_frame, _, body = channel.basic_get(queue=settings.QUEUE_NAME_TX)
             if method_frame:
                 contadorTransaction = contadorTransaction + 1
                 listaTransactions.append(json.loads(body))
@@ -318,12 +307,12 @@ def processPackages():
             block = {
                 "blockId": blockId,
                 "transactions": listaTransactions,
-                "prefijo": prefijo,
-                "baseStringChain": baseStringChain,
+                "prefijo": settings.PREFIX,
+                "baseStringChain": settings.BASE_STRING_CHAIN,
                 "blockchainContent": (
                     getUltimoBlock()["blockchainContent"] if getUltimoBlock() else "0"
                 ),
-                "numMaxRandom": maxRandom,
+                "numMaxRandom": settings.MAX_RANDOM,
             }
 
             print(f"blockchainContent: {block['blockchainContent']}")
@@ -333,17 +322,17 @@ def processPackages():
             datosBucket.append(block)
 
             # Me conecto al bucket
-            bucket = bucketConnect(bucketName, credentialPath)
+            bucket = bucketConnect(settings.BUCKET_NAME, settings.CREDENTIALS_PATH)
             subirBlock(bucket, block)
 
             # Publicar el bloque en el Topic
             channel.basic_publish(
-                exchange=exchangeBlock, routing_key="blocks", body=json.dumps(block)
+                exchange=settings.EXCHANGE_BLOCK, routing_key="blocks", body=json.dumps(block)
             )
             print(f"[x] Bloque {blockId} enviado")
             print("")
 
-        time.sleep(timer)
+        time.sleep(settings.TIMER)
 
 
 # Conectamos a la cola
@@ -355,4 +344,4 @@ status_thread = threading.Thread(target=processPackages)
 status_thread.start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host=settings.COORDINADOR_HOST, port=settings.COORDINADOR_PORT)

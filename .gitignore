@@ -10,3 +10,13 @@ uploads/
 *.log
 *.pycache/
 .env
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+credentials.json
+docker-compose.yaml
+*.exe
+*.lib
+*.exp
+*.txt
