@@ -9,7 +9,7 @@ def ejecutar_minero(from_val, to_val, prefix, hash_val):
         json.dump({"numero": 0, "hash_md5_result": ""}, archivo)
 
     # Comando para compilar el archivo CUDA
-    compile_command = ["nvcc", "md5.cu", "-o", "md5", "-allow-unsupported-compiler"]
+    compile_command = ["nvcc", "minero_cuda.cu", "-o", "minero_cuda", "-allow-unsupported-compiler"]
 
     # Ejecutar el comando de compilación
     compile_process = subprocess.run(compile_command, capture_output=True, text=True)

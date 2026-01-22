@@ -1,0 +1,12 @@
+id_rsa*
+.terraform/
+terraform.tfstate.backup
+*.pyc
+uploads/
+*.hcl
+.vscode/
+.github/
+.ssh/
+*.log
+*.pycache/
+.env
