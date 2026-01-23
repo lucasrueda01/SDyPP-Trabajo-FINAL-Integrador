@@ -9,10 +9,7 @@ from google.cloud import storage
 import uuid
 import config.settings as settings
 
-
 app = Flask(__name__)
-
-datosBucket = []
 
 
 # Conexion a Redis
@@ -23,13 +20,13 @@ def redisConnect():
 
 
 # Conexion a Rabbit-MQ para encolar Transacciones
-
-
 def queueConnect():
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=settings.RABBIT_HOST,
-            credentials=pika.PlainCredentials(settings.RABBIT_USER, settings.RABBIT_PASSWORD),
+            credentials=pika.PlainCredentials(
+                settings.RABBIT_USER, settings.RABBIT_PASSWORD
+            ),
         )
     )
     channel = connection.channel()
@@ -50,7 +47,9 @@ def bucketConnect(bucketName, credentialPath):
 def encolar(transaction):
 
     jsonTransaction = json.dumps(transaction)
-    channel.basic_publish(exchange="", routing_key=settings.QUEUE_NAME_TX, body=jsonTransaction)
+    channel.basic_publish(
+        exchange="", routing_key=settings.QUEUE_NAME_TX, body=jsonTransaction
+    )
     print(f"[x] Se enconlo en {settings.QUEUE_NAME_TX}: {transaction}")
 
 
@@ -61,10 +60,8 @@ def encolar(transaction):
 
 
 def validarTransaction(transaction):
-    if transaction["origen"] and transaction["destino"] and transaction["monto"]:
-        return True
-    else:
-        return False
+    required = ["origen", "destino", "monto"]
+    return all(k in transaction and transaction[k] for k in required)
 
 
 def calculateHash(data):
@@ -133,6 +130,7 @@ def descargarBlock(bucket, blockId):
     print(f"[x] {blockId} Descargo del Bucket")
     return block
 
+
 def borrarBlock(bucket, blockId):
     blob = bucket.blob(f"block_{blockId}.json")
     try:
@@ -140,6 +138,7 @@ def borrarBlock(bucket, blockId):
         print("Bloque borrado correctamente")
     except Exception as e:
         print(f"Ocurrió un error al borrar el bloque: {e}")
+
 
 @app.route("/transaction", methods=["POST"])
 def addTransaction():
@@ -182,14 +181,12 @@ def receive_solved_task():
 
     data = request.get_json()
 
-    global datosBucket
-
     # Procesa los datos recibidos
     if data:
         print(f"Received data: {data}")
         if data["result"] and data["result"] == "":
             return (
-                jsonify({"message": "No se encontró un resultado valido » DESCARTADO"}),
+                jsonify({"message": "No se encontró un resultado valido -> DESCARTADO"}),
                 202,
             )
         bucket = bucketConnect(settings.BUCKET_NAME, settings.CREDENTIALS_PATH)
@@ -233,14 +230,14 @@ def receive_solved_task():
                     ultimoBloque = None
 
                 if ultimoBloque != None:
-                    print("[x] Hay bloque anterior » Conectar bloques")
+                    print("[x] Hay bloque anterior -> Conectar bloques")
 
                     # Conectar los bloques
                     newBlock["hashPrevio"] = ultimoBloque["hash"]
                     print(f"[x] Hash del ultimo bloque: {ultimoBloque['hash']}")
 
                 else:
-                    print("[x] No hay bloque anterior » Bloque genesis")
+                    print("[x] No hay bloque anterior -> Bloque genesis")
                     newBlock["hashPrevio"] = None
 
             # Armamos bloque
@@ -258,14 +255,14 @@ def receive_solved_task():
             borrarBlock(bucket, data["blockId"])
 
             return (
-                jsonify({"message": "Bloque validado » Agregado a la blockchain"}),
+                jsonify({"message": "Bloque validado -> Agregado a la blockchain"}),
                 201,
             )
 
         else:
-            print("[x] Los Hash son distintos » Dato invalido")
+            print("[x] Los Hash son distintos -> Dato invalido")
             return (
-                jsonify({"message": "El Hash recibido es invalido » DESCARTADO"}),
+                jsonify({"message": "El Hash recibido es invalido -> DESCARTADO"}),
                 202,
             )
 
@@ -279,7 +276,6 @@ def processPackages():
         contadorTransaction = 0
         print("[x] Buscando Transacciones")
         print("---------------------------")
-        print("")
         listaTransactions = []
         for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
             method_frame, _, body = channel.basic_get(queue=settings.QUEUE_NAME_TX)
@@ -317,17 +313,15 @@ def processPackages():
 
             print(f"blockchainContent: {block['blockchainContent']}")
 
-            # Guardar en bucket
-            global datosBucket
-            datosBucket.append(block)
-
-            # Me conecto al bucket
+            # Me conecto al bucket y guardo el bloque
             bucket = bucketConnect(settings.BUCKET_NAME, settings.CREDENTIALS_PATH)
             subirBlock(bucket, block)
 
             # Publicar el bloque en el Topic
             channel.basic_publish(
-                exchange=settings.EXCHANGE_BLOCK, routing_key="blocks", body=json.dumps(block)
+                exchange=settings.EXCHANGE_BLOCK,
+                routing_key="blocks",
+                body=json.dumps(block),
             )
             print(f"[x] Bloque {blockId} enviado")
             print("")
@@ -336,7 +330,6 @@ def processPackages():
 
 
 # Conectamos a la cola
-
 connection, channel = queueConnect()
 client = redisConnect()
 

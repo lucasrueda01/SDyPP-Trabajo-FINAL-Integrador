@@ -113,7 +113,7 @@ void calculate_md5(char* input,char* prefix,int input_len, int prefix_len, uint8
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 5) {
+    if (argc != 6) {
         fprintf(stderr, "Uso: %s <cadena>\n", argv[0]);
         return 1;
     }
@@ -123,6 +123,8 @@ int main(int argc, char *argv[]) {
 
     const char* prefix = argv[3];
     const char* input = argv[4];
+    const char* output_path = argv[5];
+
     
     size_t input_len = strlen(input);
     size_t prefix_len = strlen(prefix);
@@ -179,12 +181,9 @@ int main(int argc, char *argv[]) {
     int numero = atoi(remaining_chars);
 
     printf("Hash MD5 de '%d%s': %.32s\n", numero, input, hash_md5_result);
-    FILE *json_file = fopen("json_output.txt", "w");
-    fprintf(json_file, "{\"numero\": %d, \"hash_md5_result\": \"%s\"}", numero, hash_md5_result);
-
-    FILE *time_file = fopen("time_output.txt", "a");
-    fprintf(time_file, "Tiempo transcurrido: %f segundos\n", elapsedTimeInSeconds);
-    fclose(time_file);
+    FILE *out = fopen(output_path, "w");
+    fprintf(out, "%d %s", numero, hash_md5_result);
+    fclose(out);
     
     cudaFree(d_input);
     cudaFree(d_result);

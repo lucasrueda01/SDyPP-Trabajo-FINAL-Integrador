@@ -1,68 +1,133 @@
+import os
 import subprocess
 import json
 import time
+from pathlib import Path
+import uuid
+
+BASE_DIR = Path(__file__).resolve().parent
+CUDA_SOURCE = BASE_DIR / "minero_cuda.cu"
+CUDA_OUTPUT = BASE_DIR / "minero_cuda"
+# Tamaño de chunk que procesa la GPU por ejecución
+GPU_CHUNK_SIZE = 512 * 150
+
+
+def compile_cuda():
+    if CUDA_OUTPUT.exists():
+        return True
+
+    compile_command = [
+        "nvcc",
+        str(CUDA_SOURCE),
+        "-o",
+        str(CUDA_OUTPUT),
+        "-allow-unsupported-compiler",
+    ]
+
+    result = subprocess.run(compile_command, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print("Error compilando CUDA:")
+        print(result.stderr)
+        return False
+
+    print("CUDA compilado correctamente")
+    return True
 
 
 def ejecutar_minero(from_val, to_val, prefix, hash_val):
-    file_path = "json_output.txt"
-    with open(file_path, "w") as archivo:
-        json.dump({"numero": 0, "hash_md5_result": ""}, archivo)
+    """
+    Devuelve SIEMPRE un JSON:
+    {
+        "numero": int,
+        "hash_md5_result": str,
+        "intentos": int
+    }
+    """
 
-    # Comando para compilar el archivo CUDA
-    compile_command = ["nvcc", "minero_cuda.cu", "-o", "minero_cuda", "-allow-unsupported-compiler"]
+    if not compile_cuda():
+        return json.dumps({
+            "numero": 0,
+            "hash_md5_result": "",
+            "intentos": 0
+        })
 
-    # Ejecutar el comando de compilación
-    compile_process = subprocess.run(compile_command, capture_output=True, text=True)
+    output_file = BASE_DIR / f"gpu_output_{uuid.uuid4().hex}.txt"
 
-    # Verificar si la compilación fue exitosa
-    if compile_process.returncode != 0:
-        print("Error al compilar el archivo CUDA:")
-        print(compile_process.stderr)
-        return
-
-    i = 0
-    encontrado = False
-    repeticiones = int(to_val / (512 * 150))
     desde = from_val
-    print("repeticiones:", repeticiones)
-    start_time_total = time.time()
-    while i <= repeticiones and not (encontrado):
-        print("ciclos:", i, "comienzo:", desde)
+    encontrado = False
+    intentos_totales = 0
 
-        execute_command = ["./md5", str(desde), str(to_val), prefix, hash_val]
+    start_time = time.time()
 
-        start_time = time.time()
-        execute_process = subprocess.run(
-            execute_command, capture_output=True, text=True
+    while desde < to_val and not encontrado:
+        hasta = min(desde + GPU_CHUNK_SIZE, to_val)
+
+        # Llamada al binario CUDA (CONTRATO NUEVO)
+        cmd = [
+            str(CUDA_OUTPUT),
+            str(desde),
+            str(hasta),
+            prefix,
+            hash_val,
+            str(output_file)
+        ]
+
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True
         )
-        end_time = time.time()
 
-        with open(file_path, "r") as archivo:
-            contenido = archivo.read()
+        if proc.returncode != 0:
+            print(" Error ejecutando CUDA:")
+            print(proc.stderr)
+            break
 
-        resultado = json.loads(contenido)
-        execution_time = end_time - start_time
+        # Intentos estimados del chunk
+        intentos_totales += (hasta - desde)
 
-        if not (resultado["hash_md5_result"] == ""):
-            encontrado = True
-        desde += 512 * 150
-        i += 1
+        # Leer salida CUDA
+        if output_file.exists():
+            contenido = output_file.read_text().strip()
+        else:
+            contenido = ""
 
-        # print(f"Tiempo de ejecución: {execution_time} segundos")
-    end_time_total = time.time()
-    execution_time_total = end_time_total - start_time_total
-    # print(f"Tiempo de ejecución total: {execution_time_total} segundos")
-    print(execute_process.args)
-    # Verificar si la ejecución fue exitosa
-    if execute_process.returncode != 0:
-        print("No se encontro el resultado")
-        print(execute_process.stderr)
-        return
+        if contenido:
+            # Esperamos formato: "<nonce> <hash>"
+            try:
+                numero_str, hash_str = contenido.split()
+                encontrado = True
+                resultado = {
+                    "numero": int(numero_str),
+                    "hash_md5_result": hash_str,
+                    "intentos": intentos_totales
+                }
+                break
+            except ValueError:
+                print("Formato inválido de salida CUDA:", contenido)
+                break
 
-    # Imprimir la salida del programa
-    print("Salida del programa minero:")
-    print(execute_process.stdout)
-    return contenido
+        # Avanzar rango
+        desde = hasta
+
+    execution_time = time.time() - start_time
+
+    # Limpieza del archivo temporal
+    try:
+        if output_file.exists():
+            os.remove(output_file)
+    except:
+        pass
+
+    if not encontrado:
+        resultado = {
+            "numero": 0,
+            "hash_md5_result": "",
+            "intentos": intentos_totales
+        }
+
+    return json.dumps(resultado)
 
 
 # Ejemplo de uso
