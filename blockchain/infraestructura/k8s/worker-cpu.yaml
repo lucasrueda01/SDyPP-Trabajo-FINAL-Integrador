@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-cpu
+  namespace: blockchain-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-cpu
+  template:
+    metadata:
+      labels:
+        app: worker-cpu
+    spec:
+      containers:
+        - name: worker-cpu
+          image: lucasrueda01/worker-cpu:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: blockchain-config

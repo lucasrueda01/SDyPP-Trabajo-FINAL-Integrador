@@ -25,6 +25,29 @@ WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 #           "numMaxRandom": maxRandom
 #      }
 
+def connect_rabbit():
+    while True:
+        try:
+            print(f"[{WORKER_ID}] Conectando a RabbitMQ...")
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=hostRabbit,
+                    credentials=pika.PlainCredentials(
+                        rabbitUser,
+                        rabbitPassword
+                    ),
+                    heartbeat=600,
+                    blocked_connection_timeout=300,
+                )
+            )
+            print(f"[{WORKER_ID}] Conectado a RabbitMQ")
+            return connection
+
+        except pika.exceptions.AMQPConnectionError:
+            print(
+                f"[{WORKER_ID}] RabbitMQ no disponible, reintentando en 5s...",
+            )
+            time.sleep(5)
 
 def calculateHash(data):
     hash_md5 = hashlib.md5()
@@ -122,29 +145,38 @@ def on_message_received(channel, method, properties, body):
 
 
 def main():
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(
-            host=hostRabbit,
-            credentials=pika.PlainCredentials(rabbitUser, rabbitPassword),
-        )
-    )
+    connection = connect_rabbit()
     channel = connection.channel()
+
     channel.exchange_declare(
-        exchange=exchangeBlock, exchange_type="topic", durable=True
+        exchange=exchangeBlock,
+        exchange_type="topic",
+        durable=True
     )
+
     result = channel.queue_declare("", exclusive=True)
     queue_name = result.method.queue
 
-    channel.queue_bind(exchange=exchangeBlock, queue=queue_name, routing_key="blocks")
-    channel.basic_consume(
-        queue=queue_name, on_message_callback=on_message_received, auto_ack=False
+    channel.queue_bind(
+        exchange=exchangeBlock,
+        queue=queue_name,
+        routing_key="blocks"
     )
+
+    channel.basic_consume(
+        queue=queue_name,
+        on_message_callback=on_message_received,
+        auto_ack=False
+    )
+
     print(f"[{WORKER_ID}] Esperando bloques...")
+
     try:
         channel.start_consuming()
     except KeyboardInterrupt:
-        print("Worker detenido por usuario")
+        print(f"[{WORKER_ID}] Worker detenido por usuario")
         connection.close()
+
 
 
 if __name__ == "__main__":

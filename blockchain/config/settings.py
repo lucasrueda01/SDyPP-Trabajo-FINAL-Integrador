@@ -22,7 +22,7 @@ EXCHANGE_BLOCK = os.getenv("EXCHANGE_BLOCK", "ExchangeBlock")
 # ======================
 # Coordinador
 # ======================
-COORDINADOR_HOST = os.getenv("COORDINADOR_HOST", "localhost")
+COORDINADOR_HOST = os.getenv("COORDINADOR_HOST", "0.0.0.0")
 COORDINADOR_PORT = int(os.getenv("COORDINADOR_PORT", 5000))
 
 # ======================
@@ -45,4 +45,3 @@ TIMER = int(os.getenv("TIMER", 15))
 # Storage / Credenciales
 # ======================
 BUCKET_NAME = os.getenv("BUCKET_NAME", "bucket_integrador2")
-CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "credentials.json")

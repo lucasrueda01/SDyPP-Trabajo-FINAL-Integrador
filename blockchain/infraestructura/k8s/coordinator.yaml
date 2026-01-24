@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator
+  namespace: blockchain-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coordinator
+  template:
+    metadata:
+      labels:
+        app: coordinator
+    spec:
+      containers:
+        - name: coordinator
+          image: lucasrueda01/coordinador:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: blockchain-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coordinator
+  namespace: blockchain-demo
+spec:
+  type: LoadBalancer
+  selector:
+    app: coordinator
+  ports:
+    - port: 5000
+      targetPort: 5000
