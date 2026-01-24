@@ -17,6 +17,9 @@ spec:
         - name: worker-cpu
           image: lucasrueda01/worker-cpu:latest
           imagePullPolicy: Always
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
           envFrom:
             - configMapRef:
                 name: blockchain-config
