@@ -36,7 +36,6 @@ logging.getLogger("google").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
-
 # -----------------------
 # Conexión a Redis
 # -----------------------
@@ -59,8 +58,10 @@ def queueConnect(retries=10, delay=3):
     for i in range(retries):
         try:
             logger.info(f"Conectando a RabbitMQ (intento {i+1})...")
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(
+            if settings.RABBIT_URL:
+                params = pika.URLParameters(settings.RABBIT_URL)
+            else:
+                params = pika.ConnectionParameters(
                     host=settings.RABBIT_HOST,
                     credentials=pika.PlainCredentials(
                         settings.RABBIT_USER, settings.RABBIT_PASSWORD
@@ -68,7 +69,8 @@ def queueConnect(retries=10, delay=3):
                     heartbeat=600,
                     blocked_connection_timeout=300,
                 )
-            )
+
+            connection = pika.BlockingConnection(params)
             channel = connection.channel()
             # declare durable queue / exchange
             channel.queue_declare(queue=settings.QUEUE_NAME_TX, durable=True)

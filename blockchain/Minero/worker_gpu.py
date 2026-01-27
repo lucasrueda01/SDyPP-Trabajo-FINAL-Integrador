@@ -9,6 +9,7 @@ import sys
 import pika
 from minero import minero_gpu
 import config.settings as settings
+import os
 
 # -----------------------
 # Logging
@@ -34,6 +35,7 @@ hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
+rabbit_url = settings.RABBIT_URL
 
 WORKER_ID = f"gpu-{random.randint(1000,9999)}"
 
@@ -168,6 +170,34 @@ def on_message_received(ch, method, _, body):
         logger.exception("[%s] Error inesperado en worker GPU", WORKER_ID)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
+# -----------------------
+# Rabbit connection
+# -----------------------
+def connect_rabbit():
+    while True:
+        try:
+            logger.info("[%s] Conectando a RabbitMQ...", WORKER_ID)
+            if rabbit_url:
+                params = pika.URLParameters(rabbit_url)
+            else:
+                params = pika.ConnectionParameters(
+                    host=hostRabbit,
+                    credentials=pika.PlainCredentials(rabbitUser, rabbitPassword),
+                    heartbeat=600,
+                    blocked_connection_timeout=300,
+                )
+
+            connection = pika.BlockingConnection(params)
+            logger.info("[%s] Conectado a RabbitMQ", WORKER_ID)
+            return connection
+        except pika.exceptions.AMQPConnectionError:
+            logger.warning(
+                "[%s] RabbitMQ no disponible, reintentando en 5s...", WORKER_ID
+            )
+            time.sleep(5)
+        except Exception:
+            logger.exception("[%s] Error inesperado conectando a RabbitMQ", WORKER_ID)
+            time.sleep(5)
 
 # -----------------------
 # Main
@@ -175,15 +205,8 @@ def on_message_received(ch, method, _, body):
 def main():
     try:
         logger.info("[%s] Conectando a RabbitMQ...", WORKER_ID)
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host=hostRabbit,
-                credentials=pika.PlainCredentials(
-                    rabbitUser,
-                    rabbitPassword,
-                ),
-            )
-        )
+
+        connection = connect_rabbit()
         channel = connection.channel()
         channel.exchange_declare(
             exchange=exchangeBlock,
@@ -221,4 +244,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

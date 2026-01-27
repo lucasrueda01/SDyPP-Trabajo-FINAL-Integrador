@@ -1,0 +1,22 @@
+services:
+  worker-gpu:
+    image: lucasrueda01/worker-gpu:latest
+    container_name: worker-gpu
+    restart: unless-stopped
+
+    environment:
+      RABBIT_USER: guest
+      RABBIT_PASSWORD: guest
+      RABBIT_URL: "amqp://blockchain:blockchain123@host.docker.internal:5672/blockchain"
+      COORDINADOR_HOST: 136.114.160.23
+      COORDINADOR_PORT: "5000"
+      EXCHANGE_BLOCK: ExchangeBlock
+
+    # Habilita GPU (Docker Desktop + WSL2)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

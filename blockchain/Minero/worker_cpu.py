@@ -33,6 +33,7 @@ hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
+rabbit_url = settings.RABBIT_URL
 
 WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 

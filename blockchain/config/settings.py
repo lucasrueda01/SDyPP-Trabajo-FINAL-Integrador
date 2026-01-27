@@ -15,6 +15,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
 RABBIT_USER = os.getenv("RABBIT_USER", "guest")
 RABBIT_PASSWORD = os.getenv("RABBIT_PASSWORD", "guest")
+RABBIT_URL = os.getenv("RABBIT_URL", "")    
 
 QUEUE_NAME_TX = os.getenv("QUEUE_NAME_TX", "QueueTransactions")
 EXCHANGE_BLOCK = os.getenv("EXCHANGE_BLOCK", "ExchangeBlock")
@@ -47,3 +48,4 @@ TIMER = int(os.getenv("TIMER", 15))
 BUCKET_NAME = os.getenv("BUCKET_NAME", "bucket_integrador2")
 
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
+
