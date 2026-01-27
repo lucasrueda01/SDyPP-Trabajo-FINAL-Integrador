@@ -10,6 +10,7 @@ data:
   RABBIT_HOST: rabbitmq
   RABBIT_USER: guest
   RABBIT_PASSWORD: guest
+  RABBIT_URL: "amqp://blockchain:blockchain123@rabbitmq:5672/blockchain"
 
   QUEUE_NAME_TX: QueueTransactions
   EXCHANGE_BLOCK: ExchangeBlock
@@ -17,7 +18,7 @@ data:
   COORDINADOR_HOST: coordinator
   COORDINADOR_PORT: "5000"
 
-  PREFIX: "000"
+  PREFIX: "0000"
   BASE_STRING_CHAIN: "A3F8"
 
   MAX_RANDOM: "99999999"
