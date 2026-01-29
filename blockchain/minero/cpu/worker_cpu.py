@@ -85,15 +85,18 @@ def connect_rabbit():
     while True:
         try:
             logger.info("[%s] Conectando a RabbitMQ...", WORKER_ID)
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(
+            if rabbit_url:
+                params = pika.URLParameters(rabbit_url)
+                logger.info("[%s] Conectado a RabbitMQ con URL", WORKER_ID)
+            else:
+                params = pika.ConnectionParameters(
                     host=hostRabbit,
                     credentials=pika.PlainCredentials(rabbitUser, rabbitPassword),
                     heartbeat=600,
                     blocked_connection_timeout=300,
                 )
-            )
-            logger.info("[%s] Conectado a RabbitMQ", WORKER_ID)
+                logger.info("[%s] Conectado a RabbitMQ con credenciales", WORKER_ID)
+            connection = pika.BlockingConnection(params)
             return connection
         except pika.exceptions.AMQPConnectionError:
             logger.warning(

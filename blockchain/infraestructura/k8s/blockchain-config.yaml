@@ -8,9 +8,8 @@ data:
   REDIS_PORT: "6379"
 
   RABBIT_HOST: rabbitmq
-  RABBIT_USER: guest
-  RABBIT_PASSWORD: guest
-  RABBIT_URL: "amqp://blockchain:blockchain123@rabbitmq:5672/blockchain"
+  RABBIT_PORT: "5672"
+  RABBIT_URL: amqp://blockchain:blockchain123@rabbitmq:5672/blockchain
 
   QUEUE_NAME_TX: QueueTransactions
   EXCHANGE_BLOCK: ExchangeBlock

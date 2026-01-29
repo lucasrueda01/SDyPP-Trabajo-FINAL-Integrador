@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: worker-cpu
-          image: lucasrueda01/worker-cpu:latest
+          image: lucasrueda01/worker-cpu:dev
           imagePullPolicy: Always
           env:
             - name: PYTHONUNBUFFERED
