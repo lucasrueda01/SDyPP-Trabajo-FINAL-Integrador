@@ -49,3 +49,20 @@ BUCKET_NAME = os.getenv("BUCKET_NAME", "bucket_integrador2")
 
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 
+# ======================
+# Pool Manager
+# ======================
+COOPERATIVE_MINING = os.getenv("COOPERATIVE_MINING", "False").lower() in (
+    "true",
+    "1",
+    "t",
+)
+POOL_MANAGER_HOST = os.getenv("POOL_MANAGER_HOST", "localhost")
+POOL_MANAGER_PORT = int(os.getenv("POOL_MANAGER_PORT", 6000))
+CPU_CAPACITY = int(os.getenv("CPU_CAPACITY", 5))
+GPU_CAPACITY = int(os.getenv("GPU_CAPACITY", 100))
+EXPECTED_GPUS = int(os.getenv("EXPECTED_GPUS", 1))
+HEARTBEAT_TTL = int(os.getenv("HEARTBEAT_TTL", 10))
+WORKER_GC_TTL = int(os.getenv("WORKER_GC_TTL", 120))  # segundos
+BASE_CPU_REPLICAS = int(os.getenv("BASE_CPU_REPLICAS", 2))
+SCALE_COOLDOWN = int(os.getenv("SCALE_COOLDOWN", 60))  # segundos

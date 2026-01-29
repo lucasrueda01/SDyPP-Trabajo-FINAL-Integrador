@@ -1,6 +1,7 @@
 import json
 import hashlib
 import random
+import threading
 import requests
 import time
 import sys
@@ -34,6 +35,8 @@ puertoCoordinador = settings.COORDINADOR_PORT
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
 rabbit_url = settings.RABBIT_URL
+pool_manager_host = settings.POOL_MANAGER_HOST
+pool_manager_port = settings.POOL_MANAGER_PORT
 
 WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 
@@ -212,12 +215,16 @@ def on_message_received(channel, method, _, body):
         # Minado CPU (función separada)
         # -----------------------
 
+        from_val = int(data.get("nonce_start", 1))
+        to_val = int(data.get("nonce_end", max_nonce))
+
         resultado = ejecutar_minero(
-            1,
-            max_nonce,
+            from_val,
+            to_val,
             prefijo,
             hash_base,
         )
+
 
         # -----------------------
         # Resultado
@@ -288,6 +295,30 @@ def on_message_received(channel, method, _, body):
         logger.debug("[%s] Esperando bloques...", WORKER_ID)
 
 
+def register():
+    url = f"http://{pool_manager_host}:{pool_manager_port}/register"
+    payload = {
+        "id": WORKER_ID,
+        "type": "cpu",
+        "capacity": settings.CPU_CAPACITY,
+    }
+    try:
+        requests.post(url, json=payload, timeout=3)
+        logger.info("[%s] Registrado en Pool Manager", WORKER_ID)
+    except Exception:
+        logger.exception("[%s] Error registrando en Pool Manager", WORKER_ID)
+
+def heartbeat_loop():
+    url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
+    while True:
+        try:
+            requests.post(url, json={"id": WORKER_ID}, timeout=3)
+        except Exception:
+            logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
+        time.sleep(settings.HEARTBEAT_TTL)
+
+
+
 # -----------------------
 # Main
 # -----------------------
@@ -307,6 +338,10 @@ def main():
     channel.basic_consume(
         queue=queue_name, on_message_callback=on_message_received, auto_ack=False
     )
+    register()
+    
+    threading.Thread(target=heartbeat_loop, daemon=True).start()
+
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
 
