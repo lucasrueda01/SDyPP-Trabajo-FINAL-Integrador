@@ -22,3 +22,4 @@ docker-compose.yaml
 *.txt
 .terraform.tfstate.lock.info
 terraform.tfstate
+docker-compose-local.yaml

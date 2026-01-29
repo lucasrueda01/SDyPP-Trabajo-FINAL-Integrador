@@ -2,9 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY minero/worker_cpu.py .
+COPY minero ./minero
 COPY config ./config
 
 RUN pip install pika requests python-dotenv
 
-CMD ["python", "worker_cpu.py"]
+CMD ["python", "-m", "minero.cpu.worker_cpu"]
