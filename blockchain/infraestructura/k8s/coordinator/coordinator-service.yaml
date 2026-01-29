@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coordinator
+  namespace: blockchain
+spec:
+  type: LoadBalancer
+  selector:
+    app: coordinator
+  ports:
+    - port: 5000
+      targetPort: 5000

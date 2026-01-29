@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: blockchain-config
-  namespace: blockchain-demo
+  namespace: blockchain
 data:
   REDIS_HOST: redis
   REDIS_PORT: "6379"

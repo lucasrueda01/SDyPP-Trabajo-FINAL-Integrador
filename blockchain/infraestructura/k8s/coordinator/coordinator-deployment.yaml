@@ -1,22 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker-cpu
-  namespace: blockchain-demo
+  name: coordinator
+  namespace: blockchain
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: worker-cpu
+      app: coordinator
   template:
     metadata:
       labels:
-        app: worker-cpu
+        app: coordinator
     spec:
       containers:
-        - name: worker-cpu
-          image: lucasrueda01/worker-cpu:dev
+        - name: coordinator
+          image: lucasrueda01/coordinador:latest
           imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
