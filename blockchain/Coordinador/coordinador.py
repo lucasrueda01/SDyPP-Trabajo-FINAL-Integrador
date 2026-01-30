@@ -201,7 +201,7 @@ def receive_solved_task():
     if not data or not data.get("result"):
         return jsonify({"message": "Resultado inválido"}), 202
 
-    claim_key = f"block:{data['blockId']}:claim"
+    claim_key = f"block:{data['blockId']}:claim" # El primer worker que solucione el bloque lo reclama, los demás fallan
     worker_id = data.get("workerId", "unknown")
 
     if not redisClient.set(claim_key, worker_id, nx=True, ex=60):

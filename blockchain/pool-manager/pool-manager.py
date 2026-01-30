@@ -7,9 +7,6 @@ from flask import Flask, request, jsonify
 import redis
 import pika
 
-# from kubernetes import client, config
-
-
 import config.settings as settings
 
 app = Flask(__name__)
@@ -26,7 +23,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("pool-manager")
-
 logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("redis").setLevel(logging.WARNING)
 
@@ -35,89 +31,84 @@ logging.getLogger("redis").setLevel(logging.WARNING)
 # -----------------------
 last_scale_time = 0
 
-
 # -----------------------
 # Redis
 # -----------------------
 def redisConnect():
-    try:
-        client = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=0,
-            decode_responses=True,
-        )
-        client.ping()
-        logger.info("Conectado a Redis")
-        return client
-    except Exception:
-        logger.exception("Error conectando a Redis")
-        raise
+    client = redis.Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        db=0,
+        decode_responses=True,
+    )
+    client.ping()
+    logger.info("Conectado a Redis")
+    return client
 
 
 # -----------------------
 # RabbitMQ
 # -----------------------
 def queueConnect():
-    try:
-        if settings.RABBIT_URL:
-            params = pika.URLParameters(settings.RABBIT_URL)
-        else:
-            params = pika.ConnectionParameters(
-                host=settings.RABBIT_HOST,
-                credentials=pika.PlainCredentials(
-                    settings.RABBIT_USER, settings.RABBIT_PASSWORD
-                ),
-            )
-
-        connection = pika.BlockingConnection(params)
-        channel = connection.channel()
-
-        channel.exchange_declare(
-            exchange=settings.EXCHANGE_BLOCK,
-            exchange_type="topic",
-            durable=True,
+    if settings.RABBIT_URL:
+        params = pika.URLParameters(settings.RABBIT_URL)
+    else:
+        params = pika.ConnectionParameters(
+            host=settings.RABBIT_HOST,
+            credentials=pika.PlainCredentials(
+                settings.RABBIT_USER, settings.RABBIT_PASSWORD
+            ),
+            heartbeat=600,
         )
 
-        logger.info("Conectado a RabbitMQ")
-        return connection, channel
+    connection = pika.BlockingConnection(params)
+    channel = connection.channel()
 
-    except Exception:
-        logger.exception("Error conectando a RabbitMQ")
-        raise
+    channel.exchange_declare(
+        exchange=settings.EXCHANGE_BLOCK,
+        exchange_type="topic",
+        durable=True,
+    )
+
+    channel.exchange_declare(
+        exchange="blocks_competitive",
+        exchange_type="fanout",
+        durable=True,
+    )
+
+    logger.info("Conectado a RabbitMQ")
+    return connection, channel
 
 
 # -----------------------
-# Workers
+# Workers (TTL-based)
 # -----------------------
 @app.route("/register", methods=["POST"])
 def register_worker():
     data = request.get_json()
     wid = data["id"]
 
-    # IP real del cliente HTTP
-    ip = request.remote_addr
-
     worker_data = {
         "id": wid,
         "type": data["type"],
         "capacity": data.get("capacity", 5),
-        "ip": ip,
-        "last_seen": int(time.time()),
+        "ip": request.remote_addr,
     }
 
-    redisClient.set(f"worker:{wid}", json.dumps(worker_data))
-    redisClient.sadd("workers", wid)
+    redisClient.set(
+        f"worker:{wid}",
+        json.dumps(worker_data),
+        ex=settings.HEARTBEAT_TTL + 5, # Slightly more than TTL
+    )
 
     logger.info(
         "Worker registrado: id=%s type=%s ip=%s",
         wid,
         data["type"],
-        ip,
+        request.remote_addr,
     )
 
     return jsonify({"status": "ok"})
-
 
 
 @app.route("/heartbeat", methods=["POST"])
@@ -130,30 +121,26 @@ def heartbeat():
         logger.warning("Heartbeat de worker desconocido: %s", wid)
         return jsonify({"error": "unknown worker"}), 404
 
-    worker = json.loads(raw)
-    worker["last_seen"] = int(time.time())
-
-    redisClient.set(f"worker:{wid}", json.dumps(worker))
+    # Renovar TTL
+    redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5)
     logger.debug("Heartbeat recibido de %s", wid)
 
     return jsonify({"status": "ok"})
 
 
 def get_alive_workers():
-    now = int(time.time())
     alive = []
     total_capacity = 0
 
-    for wid in redisClient.smembers("workers"):
-        raw = redisClient.get(f"worker:{wid}")
+    # Redis define quién está vivo
+    for key in redisClient.scan_iter("worker:*"):
+        raw = redisClient.get(key)
         if not raw:
             continue
 
         w = json.loads(raw)
-
-        if now - w["last_seen"] <= settings.HEARTBEAT_TTL:
-            alive.append(w)
-            total_capacity += int(w["capacity"])
+        alive.append(w)
+        total_capacity += int(w["capacity"])
 
     logger.info(
         "Workers vivos: %d | Capacidad total: %d",
@@ -164,30 +151,8 @@ def get_alive_workers():
     return alive, total_capacity
 
 
-def cleanup_dead_workers():
-    now = int(time.time())
-    removed = 0
-
-    for wid in list(redisClient.smembers("workers")):
-        raw = redisClient.get(f"worker:{wid}")
-        if not raw:
-            redisClient.srem("workers", wid)
-            continue
-
-        w = json.loads(raw)
-
-        if now - w["last_seen"] > settings.WORKER_GC_TTL:
-            redisClient.delete(f"worker:{wid}")
-            redisClient.srem("workers", wid)
-            removed += 1
-            logger.info("Worker %s eliminado por inactividad", wid)
-
-    if removed:
-        logger.info("Cleanup: %d workers eliminados", removed)
-
-
 # -----------------------
-# GPU -> CPU failover (con cooldown)
+# GPU -> CPU failover (conceptual)
 # -----------------------
 def handle_gpu_failover(alive_workers):
     global last_scale_time
@@ -207,31 +172,49 @@ def handle_gpu_failover(alive_workers):
     target_replicas = settings.BASE_CPU_REPLICAS + (missing * cpus_per_gpu)
 
     logger.warning(
-        "Faltan %d GPUs -> escalando CPUs a %d replicas",
+        "[CONCEPTUAL] Faltan %d GPUs -> escalar CPUs a %d replicas",
         missing,
         target_replicas,
     )
 
-    scale_cpu_workers(target_replicas)
     last_scale_time = now
 
 
-def scale_cpu_workers(target_replicas):
-    logger.warning(
-        "[CONCEPTUAL] Se debería escalar worker-cpu a %d replicas",
-        target_replicas,
-    )
+# -----------------------
+# Safe publish
+# -----------------------
+def safe_publish(exchange, routing_key, body):
+    global connection, channel
+
+    try:
+        if connection.is_closed or channel.is_closed:
+            connection, channel = queueConnect()
+
+        channel.basic_publish(
+            exchange=exchange,
+            routing_key=routing_key,
+            body=body,
+            properties=pika.BasicProperties(delivery_mode=2),
+        )
+
+    except pika.exceptions.AMQPError:
+        logger.exception("Error publicando, reconectando")
+        connection, channel = queueConnect()
+        channel.basic_publish(
+            exchange=exchange,
+            routing_key=routing_key,
+            body=body,
+            properties=pika.BasicProperties(delivery_mode=2),
+        )
 
 
 # -----------------------
-# Dispatch de bloques
+# Dispatch
 # -----------------------
 @app.route("/dispatch", methods=["POST"])
 def dispatch_block():
     block = request.get_json()
     block_id = block["blockId"]
-
-    cleanup_dead_workers()
 
     alive, total_capacity = get_alive_workers()
     handle_gpu_failover(alive)
@@ -240,24 +223,19 @@ def dispatch_block():
         logger.error("No hay workers vivos")
         return jsonify({"error": "no workers"}), 503
 
-    # -----------------------
-    # COMPETITIVO
-    # -----------------------
+    # ---------- COMPETITIVO ----------
     if not settings.COOPERATIVE_MINING:
         logger.info("Despachando bloque %s en modo COMPETITIVO", block_id)
 
-        channel.basic_publish(
-            exchange=settings.EXCHANGE_BLOCK,
-            routing_key="blocks",
+        safe_publish(
+            exchange="blocks_competitive",
+            routing_key="",
             body=json.dumps(block),
-            properties=pika.BasicProperties(delivery_mode=2),
         )
 
         return jsonify({"mode": "competitive", "workers": len(alive)})
 
-    # -----------------------
-    # COOPERATIVO
-    # -----------------------
+    # ---------- COOPERATIVO ----------
     logger.info("Despachando bloque %s en modo COOPERATIVO", block_id)
 
     nonce_start = 0
@@ -268,7 +246,7 @@ def dispatch_block():
     assignments = []
 
     for w in alive:
-        ratio = int(w["capacity"]) / total_capacity
+        ratio = w["capacity"] / total_capacity
         window = max(1, int(total_space * ratio))
 
         start = cursor
@@ -280,14 +258,17 @@ def dispatch_block():
             "nonce_end": end,
         }
 
-        channel.basic_publish(
+        logger.info("Asignando %s -> nonce %d-%d", w["id"], start, end)
+
+        safe_publish(
             exchange=settings.EXCHANGE_BLOCK,
             routing_key="blocks",
             body=json.dumps(payload),
-            properties=pika.BasicProperties(delivery_mode=2),
         )
 
-        assignments.append({"worker": w["id"], "nonce_start": start, "nonce_end": end})
+        assignments.append(
+            {"worker": w["id"], "nonce_start": start, "nonce_end": end}
+        )
 
         cursor = end + 1
 
@@ -298,7 +279,6 @@ def dispatch_block():
 # Init
 # -----------------------
 logger.info("Pool Manager iniciando")
-
 redisClient = redisConnect()
 connection, channel = queueConnect()
 

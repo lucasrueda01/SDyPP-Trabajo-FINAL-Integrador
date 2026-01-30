@@ -14,13 +14,14 @@ import config.settings as settings
 # Logging
 # -----------------------
 LOG_LEVEL = logging.DEBUG if getattr(settings, "DEBUG", False) else logging.INFO
+
 logging.basicConfig(
     level=LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-logger = logging.getLogger("worker_cpu")
 
+logger = logging.getLogger("worker_cpu")
 logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -28,10 +29,16 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # -----------------------
 # Configuracion
 # -----------------------
-hostRabbit = settings.RABBIT_HOST
-exchangeBlock = settings.EXCHANGE_BLOCK
+WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
+
+EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
+EXCHANGE_COOPERATIVE = settings.EXCHANGE_BLOCK  # topic
+QUEUE_COOPERATIVE = "blocks_queue"
+
 hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
+rabbit_url = settings.RABBIT_URL
+hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
 rabbit_url = settings.RABBIT_URL
@@ -82,7 +89,7 @@ def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | No
 
 
 # -----------------------
-# Rabbit connection
+# RabbitMQ
 # -----------------------
 def connect_rabbit():
     while True:
@@ -130,7 +137,7 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
             - processingTime (float)
             - hashRate (float)
     """
-    
+
     start_time = time.time()
     intentos = 0
 
@@ -166,7 +173,7 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
 
 
 # -----------------------
-# Message handler
+# Consumer
 # -----------------------
 def on_message_received(channel, method, _, body):
     try:
@@ -197,34 +204,34 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
-        max_nonce = int(data["numMaxRandom"])
         prefijo = data["prefijo"]
-
-        # Base de hash: EXACTAMENTE igual que GPU
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 
+        # 🔑 el mensaje define el modo
+        if "nonce_start" in data and "nonce_end" in data:
+            from_nonce = int(data["nonce_start"])
+            to_nonce = int(data["nonce_end"])
+            mode = "COOPERATIVO"
+        else:
+            from_nonce = 1
+            to_nonce = int(data["numMaxRandom"])
+            mode = "COMPETITIVO"
+
         logger.info(
-            "[%s] Bloque recibido: %s (prefijo=%s, max=%s)",
+            "[%s] Bloque %s | modo=%s | rango=[%d-%d]",
             WORKER_ID,
             block_id,
-            prefijo,
-            max_nonce,
+            mode,
+            from_nonce,
+            to_nonce,
         )
 
-        # -----------------------
-        # Minado CPU (función separada)
-        # -----------------------
-
-        from_val = int(data.get("nonce_start", 1))
-        to_val = int(data.get("nonce_end", max_nonce))
-
         resultado = ejecutar_minero(
-            from_val,
-            to_val,
+            from_nonce,
+            to_nonce,
             prefijo,
             hash_base,
         )
-
 
         # -----------------------
         # Resultado
@@ -308,6 +315,7 @@ def register():
     except Exception:
         logger.exception("[%s] Error registrando en Pool Manager", WORKER_ID)
 
+
 def heartbeat_loop():
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
@@ -318,7 +326,6 @@ def heartbeat_loop():
         time.sleep(settings.HEARTBEAT_TTL)
 
 
-
 # -----------------------
 # Main
 # -----------------------
@@ -326,22 +333,52 @@ def main():
     connection = connect_rabbit()
     channel = connection.channel()
     channel.basic_qos(prefetch_count=1)
+
+    # -------- COMPETITIVO (fanout) --------
     channel.exchange_declare(
-        exchange=exchangeBlock, exchange_type="topic", durable=True
+        exchange=EXCHANGE_COMPETITIVE,
+        exchange_type="fanout",
+        durable=True,
     )
 
     result = channel.queue_declare("", exclusive=True)
-    queue_name = result.method.queue
+    queue_competitive = result.method.queue
 
-    channel.queue_bind(exchange=exchangeBlock, queue=queue_name, routing_key="blocks")
+    channel.queue_bind(
+        exchange=EXCHANGE_COMPETITIVE,
+        queue=queue_competitive,
+    )
+
+    # -------- COOPERATIVO (cola compartida) --------
+    channel.exchange_declare(
+        exchange=EXCHANGE_COOPERATIVE,
+        exchange_type="topic",
+        durable=True,
+    )
+
+    channel.queue_declare(queue=QUEUE_COOPERATIVE, durable=True)
+
+    channel.queue_bind(
+        exchange=EXCHANGE_COOPERATIVE,
+        queue=QUEUE_COOPERATIVE,
+        routing_key="blocks",
+    )
+
+    # Consumimos de AMBOS
+    channel.basic_consume(
+        queue=queue_competitive,
+        on_message_callback=on_message_received,
+        auto_ack=False,
+    )
 
     channel.basic_consume(
-        queue=queue_name, on_message_callback=on_message_received, auto_ack=False
+        queue=QUEUE_COOPERATIVE,
+        on_message_callback=on_message_received,
+        auto_ack=False,
     )
     register()
-    
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
 
+    threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
 
@@ -355,7 +392,6 @@ def main():
             logger.exception("[%s] Error cerrando conexion RabbitMQ", WORKER_ID)
 
 
-
 if __name__ == "__main__":
     main()
-    #print(ejecutar_minero(1, 99_999_999, "0000000", "HOLAMUNDO"))
+    # print(ejecutar_minero(1, 99_999_999, "0000000", "HOLAMUNDO"))
