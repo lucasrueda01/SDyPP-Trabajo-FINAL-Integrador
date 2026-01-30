@@ -75,6 +75,7 @@ def queueConnect(retries=10, delay=3):
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
             channel.queue_declare(queue=settings.QUEUE_NAME_TX, durable=True)
+            channel.queue_declare(queue="pool_tasks", durable=True)
             logger.info("Conectado a RabbitMQ")
             return connection, channel
 
@@ -91,22 +92,23 @@ def queueConnect(retries=10, delay=3):
 # -----------------------
 # Pool Manager
 # -----------------------
-def dispatch_block_to_pool_manager(block):
-    url = f"http://{settings.POOL_MANAGER_HOST}:{settings.POOL_MANAGER_PORT}/dispatch"
-    try:
-        resp = requests.post(url, json=block, timeout=5)
-        logger.info(
-            "Bloque %s enviado al Pool Manager (status=%s)",
-            block["blockId"],
-            resp.status_code,
-        )
-        if getattr(settings, "DEBUG", False):
-            logger.debug("Respuesta Pool Manager: %s", resp.text)
-    except Exception:
-        logger.exception(
-            "Error enviando bloque %s al Pool Manager", block["blockId"]
-        )
 
+def publicar_a_pool_manager(block):
+    block_id = block["blockId"]
+    props = pika.BasicProperties(
+        delivery_mode=2,        # persistente
+        message_id=block_id,    # idempotencia
+        content_type="application/json",
+    )
+
+    channel.basic_publish(
+        exchange="",            # default exchange
+        routing_key="pool_tasks",
+        body=json.dumps(block),
+        properties=props,
+    )
+
+    logger.info("Bloque %s publicado en pool_tasks", block_id)
 
 # -----------------------
 # Helpers
@@ -276,7 +278,8 @@ def processPackages():
             }
 
             subirBlock(bucket, block)
-            dispatch_block_to_pool_manager(block)
+            publicar_a_pool_manager(block)
+
 
         time.sleep(settings.TIMER)
 

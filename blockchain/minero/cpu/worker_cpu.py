@@ -32,7 +32,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 
 EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
-EXCHANGE_COOPERATIVE = settings.EXCHANGE_BLOCK  # topic
+EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
 QUEUE_COOPERATIVE = "blocks_queue"
 
 hostCoordinador = settings.COORDINADOR_HOST

@@ -29,7 +29,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # Configuración
 # -----------------------
 hostRabbit = settings.RABBIT_HOST
-exchangeBlock = settings.EXCHANGE_BLOCK
+exchangeBlock = "blocks_cooperative"  # topic
 hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
 rabbitUser = settings.RABBIT_USER

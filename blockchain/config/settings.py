@@ -18,7 +18,6 @@ RABBIT_PASSWORD = os.getenv("RABBIT_PASSWORD", "guest")
 RABBIT_URL = os.getenv("RABBIT_URL", "")    
 
 QUEUE_NAME_TX = os.getenv("QUEUE_NAME_TX", "QueueTransactions")
-EXCHANGE_BLOCK = os.getenv("EXCHANGE_BLOCK", "ExchangeBlock")
 
 # ======================
 # Coordinador

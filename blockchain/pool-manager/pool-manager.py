@@ -2,6 +2,7 @@ import time
 import json
 import sys
 import logging
+import threading
 
 from flask import Flask, request, jsonify
 import redis
@@ -65,7 +66,7 @@ def queueConnect():
     channel = connection.channel()
 
     channel.exchange_declare(
-        exchange=settings.EXCHANGE_BLOCK,
+        exchange="blocks_cooperative",
         exchange_type="topic",
         durable=True,
     )
@@ -75,6 +76,9 @@ def queueConnect():
         exchange_type="fanout",
         durable=True,
     )
+
+    # Cola desde el coordinador
+    channel.queue_declare(queue="pool_tasks", durable=True)
 
     logger.info("Conectado a RabbitMQ")
     return connection, channel
@@ -98,7 +102,7 @@ def register_worker():
     redisClient.set(
         f"worker:{wid}",
         json.dumps(worker_data),
-        ex=settings.HEARTBEAT_TTL + 5, # Slightly more than TTL
+        ex=settings.HEARTBEAT_TTL + 5,
     )
 
     logger.info(
@@ -121,7 +125,6 @@ def heartbeat():
         logger.warning("Heartbeat de worker desconocido: %s", wid)
         return jsonify({"error": "unknown worker"}), 404
 
-    # Renovar TTL
     redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5)
     logger.debug("Heartbeat recibido de %s", wid)
 
@@ -132,7 +135,6 @@ def get_alive_workers():
     alive = []
     total_capacity = 0
 
-    # Redis define quién está vivo
     for key in redisClient.scan_iter("worker:*"):
         raw = redisClient.get(key)
         if not raw:
@@ -208,42 +210,34 @@ def safe_publish(exchange, routing_key, body):
         )
 
 
-# -----------------------
-# Dispatch
-# -----------------------
-@app.route("/dispatch", methods=["POST"])
-def dispatch_block():
-    block = request.get_json()
+def dispatch_to_workers(block):
     block_id = block["blockId"]
 
     alive, total_capacity = get_alive_workers()
     handle_gpu_failover(alive)
 
     if not alive:
-        logger.error("No hay workers vivos")
-        return jsonify({"error": "no workers"}), 503
+        logger.warning("No hay workers vivos para %s", block_id)
+        return False
 
     # ---------- COMPETITIVO ----------
     if not settings.COOPERATIVE_MINING:
-        logger.info("Despachando bloque %s en modo COMPETITIVO", block_id)
+        logger.info("Despachando %s en COMPETITIVO", block_id)
 
         safe_publish(
             exchange="blocks_competitive",
             routing_key="",
             body=json.dumps(block),
         )
-
-        return jsonify({"mode": "competitive", "workers": len(alive)})
+        return True
 
     # ---------- COOPERATIVO ----------
-    logger.info("Despachando bloque %s en modo COOPERATIVO", block_id)
+    logger.info("Despachando %s en COOPERATIVO", block_id)
 
     nonce_start = 0
     nonce_end = block.get("numMaxRandom", settings.MAX_RANDOM)
     total_space = nonce_end - nonce_start + 1
     cursor = nonce_start
-
-    assignments = []
 
     for w in alive:
         ratio = w["capacity"] / total_capacity
@@ -261,26 +255,62 @@ def dispatch_block():
         logger.info("Asignando %s -> nonce %d-%d", w["id"], start, end)
 
         safe_publish(
-            exchange=settings.EXCHANGE_BLOCK,
+            exchange="blocks_cooperative",
             routing_key="blocks",
-            body=json.dumps(payload),
-        )
-
-        assignments.append(
-            {"worker": w["id"], "nonce_start": start, "nonce_end": end}
+            body=json.dumps(payload),   
         )
 
         cursor = end + 1
 
-    return jsonify({"mode": "cooperative", "assignments": assignments})
+    return True
+
+
+# -----------------------
+# Consumer de pool_tasks
+# -----------------------
+def start_pool_consumer():
+    conn, ch = queueConnect()
+    ch.basic_qos(prefetch_count=1)
+
+    def on_pool_task(channel, method, properties, body):
+        try:
+            block = json.loads(body)
+            logger.info("Recibido bloque %s desde pool_tasks", block["blockId"])
+
+            ok = dispatch_to_workers(block)
+
+            if ok:
+                channel.basic_ack(method.delivery_tag)
+            else:
+                channel.basic_nack(method.delivery_tag, requeue=True)
+
+        except Exception:
+            logger.exception("Error procesando pool_task")
+            channel.basic_nack(method.delivery_tag, requeue=True)
+
+    ch.basic_consume(
+        queue="pool_tasks",
+        on_message_callback=on_pool_task,
+        auto_ack=False,
+    )
+
+    logger.info("Pool Manager consumiendo pool_tasks")
+    ch.start_consuming()
 
 
 # -----------------------
 # Init
 # -----------------------
 logger.info("Pool Manager iniciando")
+
 redisClient = redisConnect()
 connection, channel = queueConnect()
+
+consumer_thread = threading.Thread(
+    target=start_pool_consumer,
+    daemon=True,
+)
+consumer_thread.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=settings.POOL_MANAGER_PORT)
