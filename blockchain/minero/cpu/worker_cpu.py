@@ -356,12 +356,12 @@ def main():
         durable=True,
     )
 
-    channel.queue_declare(queue=QUEUE_COOPERATIVE, durable=True)
+    channel.queue_declare(queue="queue.cpu", durable=True)
 
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
-        queue=QUEUE_COOPERATIVE,
-        routing_key="blocks",
+        queue="queue.cpu",
+        routing_key="blocks.cpu",
     )
 
     # Consumimos de AMBOS
@@ -372,7 +372,7 @@ def main():
     )
 
     channel.basic_consume(
-        queue=QUEUE_COOPERATIVE,
+        queue="queue.cpu",
         on_message_callback=on_message_received,
         auto_ack=False,
     )

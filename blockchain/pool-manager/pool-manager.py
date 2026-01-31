@@ -126,7 +126,7 @@ def heartbeat():
         logger.warning("Heartbeat de worker desconocido: %s", wid)
         return jsonify({"error": "unknown worker"}), 404
 
-    redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5) # Refrescar TTL
+    redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5)  # Refrescar TTL
     logger.debug("Heartbeat recibido de %s", wid)
 
     return jsonify({"status": "ok"})
@@ -157,6 +157,7 @@ def get_alive_workers():
 # -----------------------
 # GPU -> CPU failover
 # -----------------------
+# TODO
 def handle_gpu_failover(alive_workers):
     global last_scale_time
 
@@ -171,7 +172,7 @@ def handle_gpu_failover(alive_workers):
         logger.info("Escalado omitido por cooldown")
         return
 
-    cpus_per_gpu = settings.GPU_CAPACITY // settings.CPU_CAPACITY
+    cpus_per_gpu = settings.CPUS_PER_GPU
     target_replicas = settings.BASE_CPU_REPLICAS + (missing * cpus_per_gpu)
 
     logger.warning(
@@ -211,10 +212,10 @@ def safe_publish(exchange, routing_key, body):
         )
 
 
-def dispatch_to_workers(block): # Enviar bloques a workers segun modo cooperativo/competitivo
+def dispatch_to_workers(block):
     block_id = block["blockId"]
 
-    alive, total_capacity = get_alive_workers()
+    alive, _ = get_alive_workers()
     handle_gpu_failover(alive)
 
     if not alive:
@@ -238,14 +239,44 @@ def dispatch_to_workers(block): # Enviar bloques a workers segun modo cooperativ
     nonce_start = 0
     nonce_end = block.get("numMaxRandom", settings.MAX_RANDOM)
     total_space = nonce_end - nonce_start + 1
+
+    # ---- separar workers por tipo ----
+    gpu_workers = [w for w in alive if w["type"] == "gpu"]
+    cpu_workers = [w for w in alive if w["type"] == "cpu"]
+
+    num_gpus = len(gpu_workers)
+    num_cpus = len(cpu_workers)
+
+    # ---- capacidades agregadas ----
+    gpu_capacity_total = num_gpus * settings.GPU_CAPACITY
+    cpu_capacity_total = num_cpus * settings.CPU_CAPACITY
+    total_capacity = gpu_capacity_total + cpu_capacity_total
+
+    if total_capacity == 0:
+        logger.error("Capacidad total = 0, no se puede despachar %s", block_id)
+        return False
+
+    logger.warning("ALIVE: %s", alive)
+    logger.warning("GPUs=%d CPUs=%d", num_gpus, num_cpus)
+    logger.warning(
+        "CAPACITY gpu=%d cpu=%d",
+        gpu_capacity_total,
+        cpu_capacity_total,
+    )
+
+    # ---- calcular reparto global ----
+    gpu_space = 0
+    if gpu_capacity_total > 0:
+        gpu_space = int(total_space * (gpu_capacity_total / total_capacity)) 
+
+    cpu_space = total_space - gpu_space
+
     cursor = nonce_start
 
-    for w in alive:
-        ratio = w["capacity"] / total_capacity
-        window = max(1, int(total_space * ratio))
-
+    # ---- enviar a GPUs (UN solo mensaje) ----
+    if num_gpus > 0 and gpu_space > 0:
         start = cursor
-        end = min(cursor + window - 1, nonce_end)
+        end = cursor + gpu_space - 1
 
         payload = {
             **block,
@@ -253,17 +284,63 @@ def dispatch_to_workers(block): # Enviar bloques a workers segun modo cooperativ
             "nonce_end": end,
         }
 
-        logger.info("Asignando %s -> nonce %d-%d", w["id"], start, end)
+        logger.info(
+            "Asignando GPUs -> nonce %d-%d (%d GPUs)",
+            start,
+            end,
+            num_gpus,
+        )
 
         safe_publish(
             exchange="blocks_cooperative",
-            routing_key="blocks",
+            routing_key="blocks.gpu",
             body=json.dumps(payload),
         )
 
         cursor = end + 1
 
+    # ---- enviar a CPUs (DIVIDIDO EN N MENSAJES) ----
+    if num_cpus > 0 and cursor <= nonce_end:
+        cpu_start = cursor
+        cpu_end = nonce_end
+        cpu_total_space = cpu_end - cpu_start + 1
+
+        cpu_chunk = cpu_total_space // num_cpus
+        cpu_cursor = cpu_start
+
+        for i in range(num_cpus):
+            start = cpu_cursor
+
+            # último CPU se queda con el resto
+            if i == num_cpus - 1:
+                end = cpu_end
+            else:
+                end = cpu_cursor + cpu_chunk - 1
+
+            payload = {
+                **block,
+                "nonce_start": start,
+                "nonce_end": end,
+            }
+
+            logger.info(
+                "Asignando CPU %d/%d -> nonce %d-%d",
+                i + 1,
+                num_cpus,
+                start,
+                end,
+            )
+
+            safe_publish(
+                exchange="blocks_cooperative",
+                routing_key="blocks.cpu",
+                body=json.dumps(payload),
+            )
+
+            cpu_cursor = end + 1
+
     return True
+
 
 
 # -----------------------

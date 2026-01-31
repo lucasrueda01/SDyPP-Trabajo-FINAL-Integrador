@@ -74,7 +74,7 @@ def queueConnect(retries=10, delay=3):
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
             channel.queue_declare(
-                queue=settings.QUEUE_NAME_TX, durable=True
+                "QueueTransactions", durable=True
             )  # Cola de transacciones
             channel.queue_declare(
                 queue="pool_tasks", durable=True
@@ -120,7 +120,7 @@ def encolar(transaction):
     props = pika.BasicProperties(delivery_mode=2)
     channel.basic_publish(
         exchange="",
-        routing_key=settings.QUEUE_NAME_TX,
+        routing_key="QueueTransactions",
         body=json.dumps(transaction),
         properties=props,
     )
@@ -155,6 +155,29 @@ def postBlock(block):
     pipe.lpush("blockchain", json.dumps(block))
     pipe.sadd("block_ids", block["blockId"])
     pipe.execute()
+
+
+def gpus_vivas():
+    """
+    Cuenta cuántos workers GPU están vivos.
+    Un worker está vivo si existe la key worker:* (TTL activo).
+    """
+    count = 0
+
+    for key in redisClient.scan_iter("worker:*"):
+        raw = redisClient.get(key)
+        if not raw:
+            continue
+
+        try:
+            worker = json.loads(raw)
+        except Exception:
+            continue
+
+        if worker.get("type") == "gpu":
+            count += 1
+
+    return count
 
 
 # -----------------------
@@ -257,7 +280,7 @@ def processPackages():
     while True:
         txs = []
         for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
-            method_frame, _, body = channel.basic_get(queue=settings.QUEUE_NAME_TX)
+            method_frame, _, body = channel.basic_get(queue="QueueTransactions")
             if not method_frame:
                 break
             txs.append(json.loads(body))
@@ -267,10 +290,17 @@ def processPackages():
             blockId = str(uuid.uuid4())
             last = getUltimoBlock()
 
+            gpus = gpus_vivas()
+
+            if gpus == 0:
+                prefijo = "0" * settings.DIFFICULTY_LOW
+            else:
+                prefijo = "0" * settings.DIFFICULTY_HIGH
+
             block = {
                 "blockId": blockId,
                 "transactions": txs,
-                "prefijo": settings.PREFIX,
+                "prefijo": prefijo,
                 "baseStringChain": settings.BASE_STRING_CHAIN,
                 "blockchainContent": last["blockchainContent"] if last else "0",
                 "numMaxRandom": settings.MAX_RANDOM,
@@ -279,7 +309,7 @@ def processPackages():
             subirBlock(bucket, block)
             publicar_a_pool_manager(block)
 
-        time.sleep(settings.TIMER)
+        time.sleep(settings.PROCESSING_TIME)
 
 
 # -----------------------

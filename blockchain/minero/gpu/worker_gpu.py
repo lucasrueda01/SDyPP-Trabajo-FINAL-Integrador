@@ -271,11 +271,11 @@ def main():
         durable=True,
     )
 
-    channel.queue_declare(queue=QUEUE_COOPERATIVE, durable=True)
+    channel.queue_declare(queue="queue.gpu", durable=True)
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
-        queue=QUEUE_COOPERATIVE,
-        routing_key="blocks",
+        queue="queue.gpu",
+        routing_key="blocks.gpu",
     )
 
     # Consumimos de ambos
@@ -286,7 +286,7 @@ def main():
     )
 
     channel.basic_consume(
-        queue=QUEUE_COOPERATIVE,
+        queue="queue.gpu",
         on_message_callback=on_message_received,
         auto_ack=False,
     )
