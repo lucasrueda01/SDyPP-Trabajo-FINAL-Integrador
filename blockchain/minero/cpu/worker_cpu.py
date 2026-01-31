@@ -334,7 +334,7 @@ def main():
     channel = connection.channel()
     channel.basic_qos(prefetch_count=1)
 
-    # -------- COMPETITIVO (fanout) --------
+    # -------- COMPETITIVO (cola exclusiva) --------
     channel.exchange_declare(
         exchange=EXCHANGE_COMPETITIVE,
         exchange_type="fanout",

@@ -2,6 +2,7 @@
 import time
 import json
 import random
+import threading
 import requests
 import logging
 import sys
@@ -28,49 +29,60 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 # -----------------------
 # Configuración
 # -----------------------
-hostRabbit = settings.RABBIT_HOST
-exchangeBlock = "blocks_cooperative"  # topic
+WORKER_ID = f"gpu-{random.randint(1000,9999)}"
+
+EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
+EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
+QUEUE_COOPERATIVE = "blocks_queue"
+
 hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
+
+rabbit_url = settings.RABBIT_URL
+hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
-rabbit_url = settings.RABBIT_URL
 
-WORKER_ID = f"gpu-{random.randint(1000,9999)}"
+pool_manager_host = settings.POOL_MANAGER_HOST
+pool_manager_port = settings.POOL_MANAGER_PORT
 
 
 # -----------------------
-# Envío de resultado al coordinador
+# Envío de resultado
 # -----------------------
 def enviar_resultado(data: dict, retries: int = 2) -> int | None:
     url = f"http://{hostCoordinador}:{puertoCoordinador}/solved_task"
     backoff = 1
     for i in range(retries + 1):
         try:
-            response = requests.post(url, json=data, timeout=5)
-            logger.debug("POST %s -> %s", url, response.status_code)
-            return response.status_code
+            resp = requests.post(url, json=data, timeout=5)
+            logger.debug("POST %s -> %s", url, resp.status_code)
+            return resp.status_code
         except requests.exceptions.RequestException as e:
             logger.warning(
-                "[%s] Fallo POST al coordinador (intento %d): %s", WORKER_ID, i + 1, e
+                "[%s] Fallo POST al coordinador (intento %d): %s",
+                WORKER_ID,
+                i + 1,
+                e,
             )
             if i < retries:
                 time.sleep(backoff)
                 backoff *= 2
             else:
-                logger.error(
-                    "[%s] No se pudo enviar resultado al coordinador", WORKER_ID
-                )
+                logger.error("[%s] No se pudo enviar resultado", WORKER_ID)
                 return None
 
 
+# -----------------------
+# Consumer
+# -----------------------
 def on_message_received(ch, method, _, body):
     try:
         try:
             data = json.loads(body)
         except Exception:
-            logger.exception("[%s] Error decodificando JSON recibido", WORKER_ID)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            logger.exception("[%s] Error decodificando JSON", WORKER_ID)
+            ch.basic_ack(method.delivery_tag)
             return
 
         required = (
@@ -81,77 +93,83 @@ def on_message_received(ch, method, _, body):
             "blockchainContent",
         )
         if not all(k in data for k in required):
-            logger.error(
-                "[%s] Bloque recibido incompleto: %s",
-                WORKER_ID,
-                {k: data.get(k) for k in data},
-            )
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            logger.error("[%s] Bloque incompleto: %s", WORKER_ID, data)
+            ch.basic_ack(method.delivery_tag)
             return
 
-        logger.info(
-            "[%s] Bloque recibido: %s (prefijo=%s) (numMaxRandom=%s)",
-            WORKER_ID,
-            data["blockId"],
-            data["prefijo"],
-            data["numMaxRandom"],
-        )
-
-        from_val = 1
-        to_val = int(data["numMaxRandom"])
+        block_id = data["blockId"]
         prefix = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 
-        startTime = time.time()
-        logger.info("[%s] Iniciando minero GPU", WORKER_ID)
+        if "nonce_start" in data and "nonce_end" in data:
+            from_nonce = int(data["nonce_start"])
+            to_nonce = int(data["nonce_end"])
+            mode = "COOPERATIVO"
+        else:
+            from_nonce = 1
+            to_nonce = int(data["numMaxRandom"])
+            mode = "COMPETITIVO"
 
-        resultado_raw = minero_gpu.ejecutar_minero(from_val, to_val, prefix, hash_base)
+        logger.info(
+            "[%s] Bloque %s | modo=%s | rango=[%d-%d]",
+            WORKER_ID,
+            block_id,
+            mode,
+            from_nonce,
+            to_nonce,
+        )
+
+        start_time = time.time()
+        resultado_raw = minero_gpu.ejecutar_minero(
+            from_nonce, to_nonce, prefix, hash_base
+        )
 
         try:
             resultado = json.loads(resultado_raw)
         except Exception:
             logger.exception("[%s] Respuesta inválida del minero GPU", WORKER_ID)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            ch.basic_ack(method.delivery_tag)
             return
 
-        processingTime = time.time() - startTime
+        processing_time = time.time() - start_time
 
-        # GPU no encontró solución
+        # No encontrado
         if not resultado.get("hash_md5_result") or resultado.get("numero", 0) == 0:
             logger.info(
-                "[%s] GPU no encontró solución en el rango (%.2fs)",
+                "[%s] No se encontró solución (%.2fs)",
                 WORKER_ID,
-                processingTime,
+                processing_time,
             )
-            dataResult = {
-                "blockId": data["blockId"],
-                "workerId": WORKER_ID,
-                "processingTime": processingTime,
-                "hashRate": 0,
-                "hash": "",
-                "result": "",
-            }
-            enviar_resultado(dataResult)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            enviar_resultado(
+                {
+                    "blockId": block_id,
+                    "workerId": WORKER_ID,
+                    "processingTime": processing_time,
+                    "hashRate": 0.0,
+                    "hash": "",
+                    "result": "",
+                }
+            )
+            ch.basic_ack(method.delivery_tag)
             return
 
-        intentos = int(resultado.get("intentos", to_val))
-        hash_rate = intentos / processingTime if processingTime > 0 else 0
+        intentos = int(resultado.get("intentos", to_nonce - from_nonce))
+        hash_rate = intentos / processing_time if processing_time > 0 else 0
 
         dataResult = {
-            "blockId": data["blockId"],
+            "blockId": block_id,
             "workerId": WORKER_ID,
-            "processingTime": processingTime,
+            "processingTime": processing_time,
             "hashRate": hash_rate,
             "hash": resultado["hash_md5_result"],
             "result": str(resultado["numero"]),
         }
 
         logger.info(
-            "[%s] Solución encontrada (nonce=%s | %.2fs | H/s=%.2f)",
+            "[%s] Solución encontrada | nonce=%s | %.2fs | H/s=%.2f",
             WORKER_ID,
             resultado["numero"],
-            processingTime,
+            processing_time,
             hash_rate,
         )
 
@@ -168,6 +186,34 @@ def on_message_received(ch, method, _, body):
     except Exception:
         logger.exception("[%s] Error inesperado en worker GPU", WORKER_ID)
         ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+# -----------------------
+# Registro y heartbeat
+# -----------------------
+def register():
+    url = f"http://{pool_manager_host}:{pool_manager_port}/register"
+    payload = {
+        "id": WORKER_ID,
+        "type": "gpu",
+        "capacity": settings.GPU_CAPACITY,
+    }
+    try:
+        requests.post(url, json=payload, timeout=3)
+        logger.info("[%s] Registrado en Pool Manager", WORKER_ID)
+    except Exception:
+        logger.exception("[%s] Error registrando en Pool Manager", WORKER_ID)
+
+
+def heartbeat_loop():
+    url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
+    while True:
+        try:
+            requests.post(url, json={"id": WORKER_ID}, timeout=3)
+        except Exception:
+            logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
+        time.sleep(settings.HEARTBEAT_TTL)
+
 
 # -----------------------
 # Rabbit connection
@@ -195,50 +241,61 @@ def connect_rabbit():
             )
             time.sleep(5)
         except Exception:
-            logger.exception("[%s] Error inesperado conectando a RabbitMQ", WORKER_ID)
+            logger.warning("[%s] RabbitMQ no disponible, reintentando...", WORKER_ID)
             time.sleep(5)
+
 
 # -----------------------
 # Main
 # -----------------------
 def main():
-    try:
-        logger.info("[%s] Conectando a RabbitMQ...", WORKER_ID)
+    connection = connect_rabbit()
+    channel = connection.channel()
+    channel.basic_qos(prefetch_count=1)
 
-        connection = connect_rabbit()
-        channel = connection.channel()
-        channel.exchange_declare(
-            exchange=exchangeBlock,
-            exchange_type="topic",
-            durable=True,
-        )
+    # -------- COMPETITIVO --------
+    channel.exchange_declare(
+        exchange=EXCHANGE_COMPETITIVE,
+        exchange_type="fanout",
+        durable=True,
+    )
 
-        result = channel.queue_declare("", exclusive=True)
-        queue_name = result.method.queue
-        channel.queue_bind(
-            exchange=exchangeBlock,
-            queue=queue_name,
-            routing_key="blocks",
-        )
+    result = channel.queue_declare("", exclusive=True)
+    queue_competitive = result.method.queue
+    channel.queue_bind(exchange=EXCHANGE_COMPETITIVE, queue=queue_competitive)
 
-        channel.basic_consume(
-            queue=queue_name,
-            on_message_callback=on_message_received,
-            auto_ack=False,
-        )
+    # -------- COOPERATIVO --------
+    channel.exchange_declare(
+        exchange=EXCHANGE_COOPERATIVE,
+        exchange_type="topic",
+        durable=True,
+    )
 
-        logger.info("[%s] Worker GPU listo y esperando bloques...", WORKER_ID)
-        channel.start_consuming()
+    channel.queue_declare(queue=QUEUE_COOPERATIVE, durable=True)
+    channel.queue_bind(
+        exchange=EXCHANGE_COOPERATIVE,
+        queue=QUEUE_COOPERATIVE,
+        routing_key="blocks",
+    )
 
-    except KeyboardInterrupt:
-        logger.info("[%s] Worker GPU detenido por usuario", WORKER_ID)
-    except Exception:
-        logger.exception("[%s] Error fatal en worker GPU", WORKER_ID)
-    finally:
-        try:
-            connection.close()
-        except Exception:
-            pass
+    # Consumimos de ambos
+    channel.basic_consume(
+        queue=queue_competitive,
+        on_message_callback=on_message_received,
+        auto_ack=False,
+    )
+
+    channel.basic_consume(
+        queue=QUEUE_COOPERATIVE,
+        on_message_callback=on_message_received,
+        auto_ack=False,
+    )
+
+    register()
+    threading.Thread(target=heartbeat_loop, daemon=True).start()
+
+    logger.info("[%s] Worker GPU listo y esperando bloques...", WORKER_ID)
+    channel.start_consuming()
 
 
 if __name__ == "__main__":

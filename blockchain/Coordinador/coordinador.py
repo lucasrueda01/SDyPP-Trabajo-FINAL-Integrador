@@ -5,7 +5,6 @@ import sys
 import time
 import uuid
 import logging
-import requests
 
 from flask import Flask, jsonify, request
 import pika
@@ -54,7 +53,7 @@ def redisConnect():
 
 
 # -----------------------
-# RabbitMQ (solo cola TX)
+# RabbitMQ
 # -----------------------
 def queueConnect(retries=10, delay=3):
     for i in range(retries):
@@ -74,8 +73,12 @@ def queueConnect(retries=10, delay=3):
 
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
-            channel.queue_declare(queue=settings.QUEUE_NAME_TX, durable=True)
-            channel.queue_declare(queue="pool_tasks", durable=True)
+            channel.queue_declare(
+                queue=settings.QUEUE_NAME_TX, durable=True
+            )  # Cola de transacciones
+            channel.queue_declare(
+                queue="pool_tasks", durable=True
+            )  # Cola de bloques para minar
             logger.info("Conectado a RabbitMQ")
             return connection, channel
 
@@ -92,23 +95,23 @@ def queueConnect(retries=10, delay=3):
 # -----------------------
 # Pool Manager
 # -----------------------
-
 def publicar_a_pool_manager(block):
     block_id = block["blockId"]
     props = pika.BasicProperties(
-        delivery_mode=2,        # persistente
-        message_id=block_id,    # idempotencia
+        delivery_mode=2,  # persistente
+        message_id=block_id,  # idempotencia
         content_type="application/json",
     )
 
     channel.basic_publish(
-        exchange="",            # default exchange
+        exchange="",
         routing_key="pool_tasks",
         body=json.dumps(block),
         properties=props,
     )
 
     logger.info("Bloque %s publicado en pool_tasks", block_id)
+
 
 # -----------------------
 # Helpers
@@ -136,7 +139,7 @@ def calculateHash(data):
 
 
 # -----------------------
-# Redis helpers blockchain
+# Redis helpers
 # -----------------------
 def getUltimoBlock():
     raw = redisClient.lindex("blockchain", 0)
@@ -189,7 +192,7 @@ def addTransaction():
         return "Transacción inválida", 400
 
     encolar(tx)
-    return "OK", 200
+    return "Transacción aceptada", 202
 
 
 @app.route("/status", methods=["GET"])
@@ -201,9 +204,9 @@ def status():
 def receive_solved_task():
     data = request.get_json()
     if not data or not data.get("result"):
-        return jsonify({"message": "Resultado inválido"}), 202
+        return jsonify({"message": "Resultado invalido"}), 202
 
-    claim_key = f"block:{data['blockId']}:claim" # El primer worker que solucione el bloque lo reclama, los demás fallan
+    claim_key = f"block:{data['blockId']}:claim"  # El primer worker que solucione el bloque lo reclama, los demás fallaran
     worker_id = data.get("workerId", "unknown")
 
     if not redisClient.set(claim_key, worker_id, nx=True, ex=60):
@@ -232,9 +235,7 @@ def receive_solved_task():
             "transactions": block["transactions"],
             "timestamp": time.time(),
             "baseStringChain": block["baseStringChain"],
-            "blockchainContent": calculateHash(
-                block["baseStringChain"] + data["hash"]
-            ),
+            "blockchainContent": calculateHash(block["baseStringChain"] + data["hash"]),
         }
 
         postBlock(newBlock)
@@ -256,9 +257,7 @@ def processPackages():
     while True:
         txs = []
         for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
-            method_frame, _, body = channel.basic_get(
-                queue=settings.QUEUE_NAME_TX
-            )
+            method_frame, _, body = channel.basic_get(queue=settings.QUEUE_NAME_TX)
             if not method_frame:
                 break
             txs.append(json.loads(body))
@@ -279,7 +278,6 @@ def processPackages():
 
             subirBlock(bucket, block)
             publicar_a_pool_manager(block)
-
 
         time.sleep(settings.TIMER)
 

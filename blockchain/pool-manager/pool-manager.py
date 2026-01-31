@@ -32,6 +32,7 @@ logging.getLogger("redis").setLevel(logging.WARNING)
 # -----------------------
 last_scale_time = 0
 
+
 # -----------------------
 # Redis
 # -----------------------
@@ -103,7 +104,7 @@ def register_worker():
         f"worker:{wid}",
         json.dumps(worker_data),
         ex=settings.HEARTBEAT_TTL + 5,
-    )
+    )  # Registro worker con expiracion (TTL)
 
     logger.info(
         "Worker registrado: id=%s type=%s ip=%s",
@@ -125,7 +126,7 @@ def heartbeat():
         logger.warning("Heartbeat de worker desconocido: %s", wid)
         return jsonify({"error": "unknown worker"}), 404
 
-    redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5)
+    redisClient.expire(f"worker:{wid}", settings.HEARTBEAT_TTL + 5) # Refrescar TTL
     logger.debug("Heartbeat recibido de %s", wid)
 
     return jsonify({"status": "ok"})
@@ -154,7 +155,7 @@ def get_alive_workers():
 
 
 # -----------------------
-# GPU -> CPU failover (conceptual)
+# GPU -> CPU failover
 # -----------------------
 def handle_gpu_failover(alive_workers):
     global last_scale_time
@@ -210,7 +211,7 @@ def safe_publish(exchange, routing_key, body):
         )
 
 
-def dispatch_to_workers(block):
+def dispatch_to_workers(block): # Enviar bloques a workers segun modo cooperativo/competitivo
     block_id = block["blockId"]
 
     alive, total_capacity = get_alive_workers()
@@ -257,7 +258,7 @@ def dispatch_to_workers(block):
         safe_publish(
             exchange="blocks_cooperative",
             routing_key="blocks",
-            body=json.dumps(payload),   
+            body=json.dumps(payload),
         )
 
         cursor = end + 1
