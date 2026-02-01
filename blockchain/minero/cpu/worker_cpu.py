@@ -26,9 +26,6 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-# -----------------------
-# Configuracion
-# -----------------------
 WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 
 EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
@@ -48,9 +45,6 @@ pool_manager_port = settings.POOL_MANAGER_PORT
 WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 
 
-# -----------------------
-# Helpers
-# -----------------------
 def calculateHash(data: str) -> str:
     hash_md5 = hashlib.md5()
     hash_md5.update(data.encode("utf-8"))
@@ -58,10 +52,6 @@ def calculateHash(data: str) -> str:
 
 
 def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | None:
-    """
-    Envía resultado al coordinador. Reintenta en caso de errores transitorios.
-    Devuelve status code (int) o None si no pudo comunicarse.
-    """
     url = f"http://{hostCoordinador}:{puertoCoordinador}/solved_task"
     backoff = 1
     for i in range(retries + 1):
@@ -125,7 +115,7 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
     Args:
         from_val: nonce inicial (inclusive)
         to_val: nonce final (inclusive)
-        prefijo: string de prefijo requerido (ej. '0000')
+        prefijo: prefijo (ej. '0000')
         hash_base: base string (baseStringChain + blockchainContent)
 
     Returns:
@@ -173,19 +163,18 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
 
 
 # -----------------------
-# Consumer
+# Consumidor
 # -----------------------
 def on_message_received(channel, method, _, body):
     try:
-        # -----------------------
-        # Decodificación del mensaje
-        # -----------------------
         try:
             data = json.loads(body)
         except Exception:
             logger.exception("[%s] Error decodificando mensaje JSON", WORKER_ID)
             channel.basic_ack(delivery_tag=method.delivery_tag)
             return
+
+        ack = False
 
         required_fields = (
             "blockId",
@@ -207,7 +196,7 @@ def on_message_received(channel, method, _, body):
         prefijo = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 
-        # 🔑 el mensaje define el modo
+        #  el mensaje define el modo
         if "nonce_start" in data and "nonce_end" in data:
             from_nonce = int(data["nonce_start"])
             to_nonce = int(data["nonce_end"])
@@ -233,9 +222,8 @@ def on_message_received(channel, method, _, body):
             hash_base,
         )
 
-        # -----------------------
-        # Resultado
-        # -----------------------
+        ack = True
+
         if resultado["encontrado"]:
             logger.info(
                 "[%s] Solución encontrada | block=%s | nonce=%s | time=%.2fs | attempts=%d | H/s=%.2f",
@@ -295,7 +283,8 @@ def on_message_received(channel, method, _, body):
 
     finally:
         try:
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+            if ack:
+                channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception:
             logger.exception("[%s] Error al ackear el mensaje", WORKER_ID)
 
@@ -320,7 +309,11 @@ def heartbeat_loop():
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
         try:
-            requests.post(url, json={"id": WORKER_ID}, timeout=3)
+            resp = requests.post(url, json={"id": WORKER_ID}, timeout=3)
+            if resp.status_code == 404:
+                logger.debug("[%s] Solicitando re-registro", WORKER_ID)
+                register()
+            
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
         time.sleep(settings.HEARTBEAT_TTL)

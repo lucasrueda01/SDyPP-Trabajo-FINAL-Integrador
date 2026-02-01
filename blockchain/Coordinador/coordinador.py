@@ -229,14 +229,38 @@ def receive_solved_task():
     if not data or not data.get("result"):
         return jsonify({"message": "Resultado invalido"}), 202
 
-    claim_key = f"block:{data['blockId']}:claim"  # El primer worker que solucione el bloque lo reclama, los demás fallaran
+    block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")
 
-    if not redisClient.set(claim_key, worker_id, nx=True, ex=60):
+    # -----------------------
+    # 1) Chequear estado del bloque (IDEMPOTENCIA)
+    # -----------------------
+    status_key = f"block:{block_id}:status"
+    status = redisClient.get(status_key)
+
+    if status == "SEALED":
+        # El bloque ya fue resuelto o cerrado
+        logger.info(
+            "Resultado tardío descartado para bloque %s (status=%s)",
+            block_id,
+            status,
+        )
+        return jsonify({"message": "Bloque ya cerrado"}), 202
+
+    # -----------------------
+    # 2) Lock corto SOLO para exclusión mutua
+    # -----------------------
+    claim_key = f"block:{block_id}:claim"
+
+    if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
         return jsonify({"message": "Bloque ya reclamado"}), 202
 
     try:
-        block = descargarBlock(bucket, data["blockId"])
+        # -----------------------
+        # 3) Descargar bloque (ahora es seguro)
+        # -----------------------
+        block = descargarBlock(bucket, block_id)
+
         hash_base = block["baseStringChain"] + block["blockchainContent"]
         hash_calc = calculateHash(data["result"] + hash_base)
 
@@ -244,13 +268,25 @@ def receive_solved_task():
             redisClient.delete(claim_key)
             return jsonify({"message": "Hash inválido"}), 202
 
-        if existBlock(block["blockId"]):
+        # -----------------------
+        # 4) Verificar si ya existe en blockchain
+        # -----------------------
+        if existBlock(block_id):
+            redisClient.set(status_key, "SEALED")
             redisClient.delete(claim_key)
             return jsonify({"message": "Bloque ya existe"}), 202
 
+        # -----------------------
+        # 5) SELLAR el bloque 
+        # -----------------------
+        redisClient.set(status_key, "SEALED")
+
+        # -----------------------
+        # 6) Construir y persistir el bloque
+        # -----------------------
         prev = getUltimoBlock()
         newBlock = {
-            "blockId": block["blockId"],
+            "blockId": block_id,
             "hash": data["hash"],
             "hashPrevio": prev["hash"] if prev else None,
             "nonce": data["result"],
@@ -258,14 +294,27 @@ def receive_solved_task():
             "transactions": block["transactions"],
             "timestamp": time.time(),
             "baseStringChain": block["baseStringChain"],
-            "blockchainContent": calculateHash(block["baseStringChain"] + data["hash"]),
+            "blockchainContent": calculateHash(
+                block["baseStringChain"] + data["hash"]
+            ),
         }
 
         postBlock(newBlock)
-        borrarBlock(bucket, block["blockId"])
 
-        logger.info("Bloque %s agregado a la blockchain", newBlock["blockId"])
+        # -----------------------
+        # 7) Borrar bloque del bucket)
+        # -----------------------
+        borrarBlock(bucket, block_id)
+
+        logger.info("Bloque %s agregado a la blockchain", block_id)
         return jsonify({"message": "Bloque aceptado"}), 201
+
+    except Exception:
+        # En caso de error inesperado, liberar lock
+        redisClient.delete(claim_key)
+        logger.exception("Error procesando resultado para bloque %s", block_id)
+        return jsonify({"message": "Error interno"}), 500
+
 
     except Exception:
         logger.exception("Error procesando bloque resuelto")

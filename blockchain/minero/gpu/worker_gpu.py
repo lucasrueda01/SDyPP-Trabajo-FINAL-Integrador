@@ -26,9 +26,6 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-# -----------------------
-# Configuración
-# -----------------------
 WORKER_ID = f"gpu-{random.randint(1000,9999)}"
 
 EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
@@ -47,9 +44,6 @@ pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
 
 
-# -----------------------
-# Envío de resultado
-# -----------------------
 def enviar_resultado(data: dict, retries: int = 2) -> int | None:
     url = f"http://{hostCoordinador}:{puertoCoordinador}/solved_task"
     backoff = 1
@@ -74,7 +68,7 @@ def enviar_resultado(data: dict, retries: int = 2) -> int | None:
 
 
 # -----------------------
-# Consumer
+# Consumidor
 # -----------------------
 def on_message_received(ch, method, _, body):
     try:
@@ -133,7 +127,7 @@ def on_message_received(ch, method, _, body):
 
         processing_time = time.time() - start_time
 
-        # No encontrado
+        # ---- No encontrado ----
         if not resultado.get("hash_md5_result") or resultado.get("numero", 0) == 0:
             logger.info(
                 "[%s] No se encontró solución (%.2fs)",
@@ -181,16 +175,13 @@ def on_message_received(ch, method, _, body):
         else:
             logger.info("[%s] Resultado descartado por el coordinador", WORKER_ID)
 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        ch.basic_ack(method.delivery_tag)
 
     except Exception:
-        logger.exception("[%s] Error inesperado en worker GPU", WORKER_ID)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        logger.exception("[%s] Error procesando mensaje", WORKER_ID)
+        # En error inesperado, NO ackeamos → Rabbit reencola
 
 
-# -----------------------
-# Registro y heartbeat
-# -----------------------
 def register():
     url = f"http://{pool_manager_host}:{pool_manager_port}/register"
     payload = {
@@ -209,15 +200,15 @@ def heartbeat_loop():
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
         try:
-            requests.post(url, json={"id": WORKER_ID}, timeout=3)
+            resp = requests.post(url, json={"id": WORKER_ID}, timeout=3)
+            if resp.status_code == 404:
+                logger.debug("[%s] Solicitando re-registro", WORKER_ID)
+                register()
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
         time.sleep(settings.HEARTBEAT_TTL)
 
 
-# -----------------------
-# Rabbit connection
-# -----------------------
 def connect_rabbit():
     while True:
         try:
@@ -245,9 +236,6 @@ def connect_rabbit():
             time.sleep(5)
 
 
-# -----------------------
-# Main
-# -----------------------
 def main():
     connection = connect_rabbit()
     channel = connection.channel()
@@ -271,7 +259,15 @@ def main():
         durable=True,
     )
 
-    channel.queue_declare(queue="queue.gpu", durable=True)
+    # Dead Letter Exchange y Queue
+    channel.queue_declare(
+        queue="queue.gpu",
+        durable=True,
+        arguments={
+            "x-message-ttl": 60000,
+            "x-dead-letter-exchange": "dlx.tasks",
+        },
+    )
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
         queue="queue.gpu",
@@ -295,7 +291,14 @@ def main():
     threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     logger.info("[%s] Worker GPU listo y esperando bloques...", WORKER_ID)
-    channel.start_consuming()
+    try:
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        logger.info("[%s] Worker detenido por usuario", WORKER_ID)
+        try:
+            connection.close()
+        except Exception:
+            logger.exception("[%s] Error cerrando conexion RabbitMQ", WORKER_ID)
 
 
 if __name__ == "__main__":
