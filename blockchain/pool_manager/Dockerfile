@@ -2,18 +2,22 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copiamos el código del pool manager
-COPY pool-manager/pool-manager.py .
+# Copiamos el paquete del pool manager
+COPY pool_manager ./pool_manager
 
-# Copiamos settings y config compartida
+# Copiamos config compartida
 COPY config ./config
 
-# Dependencias necesarias
+# Instalamos dependencias
 RUN pip install --no-cache-dir \
     flask \
     pika \
     redis \
+    requests \
     python-dotenv
 
-# Comando de arranque
-CMD ["python", "pool-manager.py"]
+# Exponemos el puerto del Pool Manager
+EXPOSE 6000
+
+# Ejecutamos como módulo (imports correctos)
+CMD ["python", "-m", "pool_manager.pool_manager"]
