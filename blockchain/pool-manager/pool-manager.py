@@ -394,12 +394,12 @@ def start_dlq_consumer():
             if num_gpus > 0:
                 logger.info("DLQ: hay GPUs vivas -> republicando a queue.gpu")
 
-                gpu_payload, cpu_payloads = fragmentar(msg, num_gpus, num_cpus)
-                if gpu_payload:
+                gpu_payloads, cpu_payloads = fragmentar(msg, num_gpus, num_cpus)
+                for payload in gpu_payloads:
                     safe_publish(
                         exchange="blocks_cooperative",
                         routing_key="blocks.gpu",
-                        body=json.dumps(gpu_payload),
+                        body=json.dumps(payload),
                     )
                 for payload in cpu_payloads:
                     safe_publish(
