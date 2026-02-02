@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pool-manager
+  namespace: blockchain
+spec:
+  type: ClusterIP
+  selector:
+    app: pool-manager
+  ports:
+    - port: 6000
+      targetPort: 6000

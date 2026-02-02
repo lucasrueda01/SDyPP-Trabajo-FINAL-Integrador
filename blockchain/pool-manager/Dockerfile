@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir \
     python-dotenv
 
 # Comando de arranque
-CMD ["python", "pool_manager.py"]
+CMD ["python", "pool-manager.py"]

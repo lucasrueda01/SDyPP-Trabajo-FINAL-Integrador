@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coordinator
+  name: pool-manager
   namespace: blockchain
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: coordinator
+      app: pool-manager
   template:
     metadata:
       labels:
-        app: coordinator
+        app: pool-manager
     spec:
       containers:
         - name: coordinator
-          image: lucasrueda01/coordinador:dev
+          image: lucasrueda01/pool-manager:dev2 
           imagePullPolicy: Always
           ports:
-            - containerPort: 5000
+            - containerPort: 6000
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
