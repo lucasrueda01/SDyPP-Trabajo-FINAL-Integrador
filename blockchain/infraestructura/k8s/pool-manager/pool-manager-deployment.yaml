@@ -1,22 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker-cpu
-  namespace: blockchain-demo
+  name: pool-manager
+  namespace: blockchain
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: worker-cpu
+      app: pool-manager
   template:
     metadata:
       labels:
-        app: worker-cpu
+        app: pool-manager
     spec:
       containers:
-        - name: worker-cpu
-          image: lucasrueda01/worker-cpu:latest
+        - name: coordinator
+          image: lucasrueda01/pool-manager:dev2 
           imagePullPolicy: Always
+          ports:
+            - containerPort: 6000
           env:
             - name: PYTHONUNBUFFERED
               value: "1"

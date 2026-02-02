@@ -12,13 +12,13 @@ RUN apt-get update && apt-get install -y \
 # -----------------------
 # Código Python (paquetes)
 # -----------------------
-COPY minero/__init__.py /app/minero/__init__.py
-COPY minero/worker_gpu.py /app/minero/worker_gpu.py
-COPY minero/minero_gpu.py /app/minero/minero_gpu.py
+COPY minero/gpu/__init__.py /app/minero/gpu/__init__.py
+COPY minero/gpu/worker_gpu.py /app/minero/gpu/worker_gpu.py
+COPY minero/gpu/minero_gpu.py /app/minero/gpu/minero_gpu.py
 
 # Código CUDA
-COPY minero/minero_cuda.cu /app/minero/minero_cuda.cu
-COPY minero/md5.cu /app/minero/md5.cu
+COPY minero/gpu/minero_cuda.cu /app/minero/gpu/minero_cuda.cu
+COPY minero/gpu/md5.cu /app/minero/gpu/md5.cu
 
 # Configuración compartida
 COPY config /app/config
@@ -26,9 +26,9 @@ COPY config /app/config
 # -----------------------
 # Compilación CUDA (build time)
 # -----------------------
-RUN nvcc /app/minero/minero_cuda.cu -o /app/minero/minero_cuda -allow-unsupported-compiler \
- && chmod +x /app/minero/minero_cuda
-
+RUN nvcc /app/minero/gpu/minero_cuda.cu -o /app/minero/gpu/minero_cuda -allow-unsupported-compiler \
+ && chmod +x /app/minero/gpu/minero_cuda
+ 
 # -----------------------
 # Dependencias Python
 # -----------------------
@@ -37,4 +37,4 @@ RUN pip3 install pika requests python-dotenv
 # -----------------------
 # Run
 # -----------------------
-CMD ["python3", "-m", "minero.worker_gpu"]
+CMD ["python3", "-m", "minero.gpu.worker_gpu"]
