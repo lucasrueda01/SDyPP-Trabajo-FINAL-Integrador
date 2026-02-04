@@ -13,5 +13,6 @@ resource "google_compute_router_nat" "worker_nat" {
 
   log_config {
     enable = false
+    filter = "ERRORS_ONLY"
   }
 }

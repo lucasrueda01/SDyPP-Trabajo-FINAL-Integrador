@@ -18,7 +18,7 @@ variable "apps_min_nodes" { default = 1 }
 variable "apps_max_nodes" { default = 2 }
 
 # worker VMs
-variable "worker_cpu_count" { default = 3 }
+variable "worker_cpu_count" { default = 2 }
 variable "worker_machine_type" { default = "e2-small" }
 
 # (opcional) IP/host de rabbit si lo ponés en outputs y lo pasás acá

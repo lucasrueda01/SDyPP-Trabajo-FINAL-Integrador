@@ -11,6 +11,7 @@ redis_client = redis_connect()
 
 LOG_LEVEL = logging.DEBUG
 
+
 logging.basicConfig(
     level=LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s",
@@ -38,9 +39,9 @@ def register():
 @app.route("/heartbeat", methods=["POST"])
 def hb():
     data = request.get_json()
-    if not heartbeat(redis_client, data["id"]):
-        return jsonify({"error": "not registered"}), 404
+    heartbeat(redis_client, data["id"])
     return jsonify({"status": "ok"})
+
 
 
 threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=True).start()

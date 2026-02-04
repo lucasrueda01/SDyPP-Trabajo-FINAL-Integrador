@@ -17,7 +17,7 @@ spec:
         node-role: apps
       containers:
         - name: coordinator
-          image: lucasrueda01/pool_manager:dev3 
+          image: lucasrueda01/pool_manager:dev4 
           imagePullPolicy: Always
           ports:
             - containerPort: 6000
