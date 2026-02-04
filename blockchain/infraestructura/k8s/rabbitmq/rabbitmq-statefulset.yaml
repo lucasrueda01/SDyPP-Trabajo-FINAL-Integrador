@@ -5,7 +5,7 @@ metadata:
   namespace: blockchain
 spec:
   serviceName: rabbitmq
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: rabbitmq
@@ -14,6 +14,8 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      nodeSelector:
+        node-role: infra
       containers:
         - name: rabbitmq
           image: rabbitmq:3-management

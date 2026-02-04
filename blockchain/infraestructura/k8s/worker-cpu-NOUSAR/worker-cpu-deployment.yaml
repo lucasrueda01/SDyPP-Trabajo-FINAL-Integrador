@@ -4,7 +4,7 @@ metadata:
   name: worker-cpu
   namespace: blockchain
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: worker-cpu
@@ -13,13 +13,21 @@ spec:
       labels:
         app: worker-cpu
     spec:
+      nodeSelector:
+        node-role: apps
       containers:
         - name: worker-cpu
-          image: lucasrueda01/worker-cpu:dev
+          image: lucasrueda01/worker-cpu:dev2
           imagePullPolicy: Always
-          env:
-            - name: PYTHONUNBUFFERED
-              value: "1"
           envFrom:
             - configMapRef:
                 name: blockchain-config
+            - secretRef:
+                name: rabbitmq-credentials
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: RABBIT_HOST
+              value: rabbitmq-external
+          
+          

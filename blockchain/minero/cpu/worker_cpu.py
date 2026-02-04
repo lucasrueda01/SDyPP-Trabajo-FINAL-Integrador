@@ -38,7 +38,6 @@ rabbit_url = settings.RABBIT_URL
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
-rabbit_url = settings.RABBIT_URL
 pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
 

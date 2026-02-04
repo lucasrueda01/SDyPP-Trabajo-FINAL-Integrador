@@ -227,40 +227,45 @@ def status():
 def receive_solved_task():
     data = request.get_json()
     if not data or not data.get("result"):
-        return jsonify({"message": "Resultado invalido"}), 202
+        return jsonify({"message": "Resultado inválido"}), 202
 
     block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")
 
-    # -----------------------
-    # 1) Chequear estado del bloque (IDEMPOTENCIA)
-    # -----------------------
     status_key = f"block:{block_id}:status"
-    status = redisClient.get(status_key)
+    claim_key = f"block:{block_id}:claim"
 
-    if status == "SEALED":
-        # El bloque ya fue resuelto o cerrado
+    # -----------------------
+    # 1) Idempotencia fuerte
+    # -----------------------
+    status = redisClient.get(status_key)
+    if status == b"SEALED":
         logger.info(
-            "Resultado tardío descartado para bloque %s (status=%s)",
+            "Resultado tardío descartado de %s para bloque %s",
+            worker_id,
             block_id,
-            status,
         )
         return jsonify({"message": "Bloque ya cerrado"}), 202
 
     # -----------------------
-    # 2) Lock corto SOLO para exclusión mutua
+    # 2) Claim exclusivo (competencia)
     # -----------------------
-    claim_key = f"block:{block_id}:claim"
-
     if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
         return jsonify({"message": "Bloque ya reclamado"}), 202
 
     try:
         # -----------------------
-        # 3) Descargar bloque (ahora es seguro)
+        # 3) Descargar bloque
         # -----------------------
         block = descargarBlock(bucket, block_id)
+        if not block:
+            redisClient.set(status_key, "SEALED")
+            redisClient.delete(claim_key)
+            return jsonify({"message": "Bloque ya cerrado"}), 202
 
+        # -----------------------
+        # 4) Validar hash
+        # -----------------------
         hash_base = block["baseStringChain"] + block["blockchainContent"]
         hash_calc = calculateHash(data["result"] + hash_base)
 
@@ -269,7 +274,7 @@ def receive_solved_task():
             return jsonify({"message": "Hash inválido"}), 202
 
         # -----------------------
-        # 4) Verificar si ya existe en blockchain
+        # 5) Verificar existencia
         # -----------------------
         if existBlock(block_id):
             redisClient.set(status_key, "SEALED")
@@ -277,12 +282,12 @@ def receive_solved_task():
             return jsonify({"message": "Bloque ya existe"}), 202
 
         # -----------------------
-        # 5) SELLAR el bloque 
+        # 6) Sellar bloque
         # -----------------------
         redisClient.set(status_key, "SEALED")
 
         # -----------------------
-        # 6) Construir y persistir el bloque
+        # 7) Construir y persistir
         # -----------------------
         prev = getUltimoBlock()
         newBlock = {
@@ -302,24 +307,26 @@ def receive_solved_task():
         postBlock(newBlock)
 
         # -----------------------
-        # 7) Borrar bloque del bucket)
+        # 8) Borrar bloque temporal
         # -----------------------
         borrarBlock(bucket, block_id)
 
-        logger.info("Bloque %s agregado a la blockchain", block_id)
+        logger.info(
+            "Bloque %s aceptado. Ganador: %s",
+            block_id,
+            worker_id,
+        )
         return jsonify({"message": "Bloque aceptado"}), 201
 
     except Exception:
-        # En caso de error inesperado, liberar lock
         redisClient.delete(claim_key)
-        logger.exception("Error procesando resultado para bloque %s", block_id)
+        logger.exception(
+            "Error procesando resultado del worker %s para bloque %s",
+            worker_id,
+            block_id,
+        )
         return jsonify({"message": "Error interno"}), 500
 
-
-    except Exception:
-        logger.exception("Error procesando bloque resuelto")
-        redisClient.delete(claim_key)
-        return jsonify({"message": "Error interno"}), 500
 
 
 # -----------------------

@@ -12,10 +12,18 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 # ======================
 # RabbitMQ
 # ======================
-RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
-RABBIT_USER = os.getenv("RABBIT_USER", "guest")
-RABBIT_PASSWORD = os.getenv("RABBIT_PASSWORD", "guest")
-RABBIT_URL = os.getenv("RABBIT_URL", "")    
+
+RABBIT_USER = os.getenv("RABBIT_USER")
+RABBIT_PASSWORD = os.getenv("RABBIT_PASSWORD")
+RABBIT_HOST = os.getenv("RABBIT_HOST")
+RABBIT_PORT = os.getenv("RABBIT_PORT", "5672")
+RABBIT_VHOST = os.getenv("RABBIT_VHOST", "")
+
+RABBIT_URL = (
+    f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}"
+    f"@{RABBIT_HOST}:{RABBIT_PORT}/{RABBIT_VHOST}"
+)
+# ampqp://user:password@host:port/
 
 
 # ======================
@@ -32,9 +40,7 @@ DIFFICULTY_HIGH = int(os.getenv("DIFFICULTY_HIGH", 6))
 BASE_STRING_CHAIN = os.getenv("BASE_STRING_CHAIN", "A3F8")
 CPUS_PER_GPU = int(os.getenv("CPUS_PER_GPU", 4))
 MAX_RANDOM = int(os.getenv("MAX_RANDOM", 99_999_999))
-MAX_TRANSACTIONS_PER_BLOCK = int(
-    os.getenv("MAX_TRANSACTIONS_PER_BLOCK", 20)
-)
+MAX_TRANSACTIONS_PER_BLOCK = int(os.getenv("MAX_TRANSACTIONS_PER_BLOCK", 20))
 
 # ======================
 # Tiempos
