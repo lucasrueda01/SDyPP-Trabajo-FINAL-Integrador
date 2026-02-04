@@ -46,19 +46,13 @@ def register_worker(redis_client, wid, data, ip):
 def heartbeat(redis_client, wid):
     key = f"worker:{wid}"
 
-    # Si existe, renueva TTL
-    if redis_client.expire(key, settings.HEARTBEAT_TTL + 5):
+    if redis_client.exists(key):
+        redis_client.expire(key, settings.HEARTBEAT_TTL + 5)
         logger.debug("Heartbeat recibido de %s", wid)
         return True
 
-    # Si no existe, lo recrea suavemente
-    redis_client.set(
-        key,
-        json.dumps({"id": wid, "recovered": True}),
-        ex=settings.HEARTBEAT_TTL + 5,
-    )
-    logger.info("Worker %s recuperado via heartbeat", wid)
-    return True
+    return False
+
 
 
 

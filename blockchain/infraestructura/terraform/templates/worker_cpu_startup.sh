@@ -20,6 +20,7 @@ export POOL_MANAGER_PORT="6000"
 
 export CPU_CAPACITY="10"
 export HEARTBEAT_TTL="10"
+export TZ="America/Argentina/Buenos_Aires"
 
 # -----------------------------
 # Dependencias
@@ -47,6 +48,7 @@ docker run -d \
   -e POOL_MANAGER_PORT \
   -e CPU_CAPACITY \
   -e HEARTBEAT_TTL \
+  -e TZ \
   lucasrueda01/worker-cpu:dev2
 
 echo "Worker CPU iniciado correctamente"

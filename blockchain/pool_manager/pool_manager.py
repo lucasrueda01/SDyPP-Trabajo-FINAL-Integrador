@@ -39,8 +39,13 @@ def register():
 @app.route("/heartbeat", methods=["POST"])
 def hb():
     data = request.get_json()
-    heartbeat(redis_client, data["id"])
+    ok = heartbeat(redis_client, data["id"])
+
+    if not ok:
+        return jsonify({"error": "not registered"}), 404
+
     return jsonify({"status": "ok"})
+
 
 
 

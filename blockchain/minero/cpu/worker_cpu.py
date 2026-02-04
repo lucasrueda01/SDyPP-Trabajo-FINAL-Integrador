@@ -315,7 +315,7 @@ def heartbeat_loop():
             
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
-        time.sleep(settings.HEARTBEAT_TTL)
+        time.sleep(settings.HEARTBEAT_TTL // 2)
 
 
 # -----------------------
