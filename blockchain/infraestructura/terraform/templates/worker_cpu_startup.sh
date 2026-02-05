@@ -4,7 +4,7 @@ set -e
 echo "Inicializando worker CPU..."
 
 # -----------------------------
-# Variables de entorno (HARDCODEADAS)
+# Variables de entorno
 # -----------------------------
 export COORDINADOR_HOST="146.148.44.118"
 export COORDINADOR_PORT="5000"
