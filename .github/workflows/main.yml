@@ -1,0 +1,63 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NAMESPACE: blockchain
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: coordinador
+            path: blockchain/coordinador
+            image: blockchain-coordinator
+          - name: cpu-scaler
+            path: blockchain/cpu-scaler
+            image: blockchain-cpu-scaler
+          - name: pool-manager
+            path: blockchain/pool_manager
+            image: blockchain-pool-manager
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Debug workspace
+        run: |
+          pwd
+          ls -la
+          ls -la blockchain
+          ls -la blockchain/coordinador
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.path }}
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+      - run: |
+          kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
+      - run: |
+          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
