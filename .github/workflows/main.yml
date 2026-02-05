@@ -7,9 +7,9 @@ on:
 
 env:
   NAMESPACE: blockchain
-  PROJECT_ID: TU_PROJECT_ID
-  CLUSTER_NAME: TU_CLUSTER_NAME
-  CLUSTER_REGION: TU_REGION
+  PROJECT_ID: dulcet-thinker-485219-q1
+  CLUSTER_NAME: cluster-blockchain
+  CLUSTER_REGION: us-central1
 
 jobs:
   build:
