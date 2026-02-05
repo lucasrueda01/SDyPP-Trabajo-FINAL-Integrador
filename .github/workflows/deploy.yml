@@ -17,13 +17,13 @@ jobs:
       matrix:
         service:
           - name: coordinador
-            dockerfile: blockchain/coordinador/Dockerfile
+            dockerfile: coordinador/Dockerfile
             image: blockchain-coordinator
           - name: cpu-scaler
-            dockerfile: blockchain/cpu-scaler/Dockerfile
+            dockerfile: cpu-scaler/Dockerfile
             image: blockchain-cpu-scaler
           - name: pool-manager
-            dockerfile: blockchain/pool_manager/Dockerfile
+            dockerfile: pool_manager/Dockerfile
             image: blockchain-pool-manager
 
     steps:
@@ -40,7 +40,8 @@ jobs:
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
-          context: .
+          # 👇 ESTE es el punto clave
+          context: blockchain
           file: ${{ matrix.service.dockerfile }}
           push: true
           tags: |
@@ -51,11 +52,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
         run: |
