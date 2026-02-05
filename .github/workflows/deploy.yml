@@ -7,7 +7,6 @@ on:
 
 env:
   NAMESPACE: blockchain
-  REGISTRY: ghcr.io
 
 jobs:
   build:
@@ -17,18 +16,17 @@ jobs:
       matrix:
         service:
           - name: coordinador
-            dockerfile: coordinador/Dockerfile
+            dockerfile: blockchain/coordinador/Dockerfile
             image: blockchain-coordinator
           - name: cpu-scaler
-            dockerfile: cpu-scaler/Dockerfile
+            dockerfile: blockchain/cpu-scaler/Dockerfile
             image: blockchain-cpu-scaler
           - name: pool-manager
-            dockerfile: pool_manager/Dockerfile
+            dockerfile: blockchain/pool_manager/Dockerfile
             image: blockchain-pool-manager
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -40,7 +38,6 @@ jobs:
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
-          # 👇 ESTE es el punto clave
           context: blockchain
           file: ${{ matrix.service.dockerfile }}
           push: true
