@@ -2,10 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY minero/cpu/__init__.py /app/minero/cpu/__init__.py
-COPY minero/cpu/worker_cpu.py /app/minero/cpu/worker_cpu.py
-COPY config /app/config
+# Copiamos todo el contenido del worker CPU
+COPY . .
 
-RUN pip install pika requests python-dotenv
+RUN pip install --no-cache-dir \
+    pika \
+    requests \
+    python-dotenv
 
-CMD ["python", "-m", "minero.cpu.worker_cpu"]
+# Ejecutamos el worker directamente
+CMD ["python", "worker_cpu.py"]
