@@ -49,6 +49,6 @@ docker run -d \
   -e CPU_CAPACITY \
   -e HEARTBEAT_TTL \
   -e TZ \
-  lucasrueda01/worker-cpu:dev2
+  ghcr.io/lucasrueda01/worker-cpu
 
 echo "Worker CPU iniciado correctamente"

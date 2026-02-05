@@ -28,7 +28,7 @@ spec:
 
       containers:
         - name: cpu-scaler
-          image: ghcr.io/lucasrueda01/blockchain-cpu-scaler:test
+          image: ghcr.io/lucasrueda01/blockchain-cpu-scaler:latest
           imagePullPolicy: Always
 
           resources:

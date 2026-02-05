@@ -19,7 +19,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: coordinator
-          image: ghcr.io/lucasrueda01/blockchain-pool-manager:test 
+          image: ghcr.io/lucasrueda01/blockchain-pool-manager:latest 
           imagePullPolicy: Always
           ports:
             - containerPort: 6000
