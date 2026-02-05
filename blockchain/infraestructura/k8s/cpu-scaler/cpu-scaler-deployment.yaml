@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-scaler
+  namespace: blockchain
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cpu-scaler
+  template:
+    metadata:
+      labels:
+        app: cpu-scaler
+    spec:
+      nodeSelector:
+        node-role: apps
+      imagePullSecrets:
+        - name: ghcr-secret
+      serviceAccountName: cpu-scaler
+      restartPolicy: Always
+
+      containers:
+        - name: cpu-scaler
+          image: ghcr.io/lucasrueda01/blockchain-cpu-scaler:test
+          imagePullPolicy: Always
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          envFrom:
+            - configMapRef:
+                name: blockchain-config
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false

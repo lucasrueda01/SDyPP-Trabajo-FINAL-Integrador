@@ -1,12 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: pool-manager
+  name: rabbitmq-external
   namespace: blockchain
 spec:
   type: LoadBalancer
   selector:
-    app: pool-manager
+    app: rabbitmq
   ports:
-    - port: 6000
-      targetPort: 6000
+    - name: amqp
+      port: 5672
+      targetPort: 5672

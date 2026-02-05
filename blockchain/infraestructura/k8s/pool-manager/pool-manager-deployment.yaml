@@ -4,7 +4,7 @@ metadata:
   name: pool-manager
   namespace: blockchain
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: pool-manager
@@ -13,9 +13,13 @@ spec:
       labels:
         app: pool-manager
     spec:
+      nodeSelector:
+        node-role: apps
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: coordinator
-          image: lucasrueda01/pool-manager:dev2 
+          image: ghcr.io/lucasrueda01/blockchain-pool-manager:test 
           imagePullPolicy: Always
           ports:
             - containerPort: 6000
@@ -25,3 +29,5 @@ spec:
           envFrom:
             - configMapRef:
                 name: blockchain-config
+            - secretRef:
+                name: rabbitmq-credentials

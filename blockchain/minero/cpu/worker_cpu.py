@@ -38,7 +38,6 @@ rabbit_url = settings.RABBIT_URL
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
-rabbit_url = settings.RABBIT_URL
 pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
 
@@ -316,7 +315,7 @@ def heartbeat_loop():
             
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
-        time.sleep(settings.HEARTBEAT_TTL)
+        time.sleep(settings.HEARTBEAT_TTL // 2)
 
 
 # -----------------------
