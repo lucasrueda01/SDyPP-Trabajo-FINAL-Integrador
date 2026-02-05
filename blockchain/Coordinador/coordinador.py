@@ -299,9 +299,7 @@ def receive_solved_task():
             "transactions": block["transactions"],
             "timestamp": time.time(),
             "baseStringChain": block["baseStringChain"],
-            "blockchainContent": calculateHash(
-                block["baseStringChain"] + data["hash"]
-            ),
+            "blockchainContent": calculateHash(block["baseStringChain"] + data["hash"]),
         }
 
         postBlock(newBlock)
@@ -328,7 +326,6 @@ def receive_solved_task():
         return jsonify({"message": "Error interno"}), 500
 
 
-
 # -----------------------
 # Background loop
 # -----------------------
@@ -345,13 +342,22 @@ def processPackages():
         if txs:
             blockId = str(uuid.uuid4())
             last = getUltimoBlock()
+            
+            requested_difficulties = [
+                tx["requested_difficulty"] for tx in txs if "requested_difficulty" in tx
+            ]
 
-            gpus = gpus_vivas()
+            if requested_difficulties: # Si se pide explícitamente, usar la mayor
+                final_difficulty = max(requested_difficulties)
 
-            if gpus == 0:
-                prefijo = "0" * settings.DIFFICULTY_LOW
-            else:
-                prefijo = "0" * settings.DIFFICULTY_HIGH
+            else: # Si no, ajustar según GPUs vivas
+                gpus = gpus_vivas()
+                if gpus == 0:
+                    final_difficulty = settings.DIFFICULTY_LOW
+                else:
+                    final_difficulty = settings.DIFFICULTY_HIGH
+
+            prefijo = "0" * final_difficulty
 
             block = {
                 "blockId": blockId,

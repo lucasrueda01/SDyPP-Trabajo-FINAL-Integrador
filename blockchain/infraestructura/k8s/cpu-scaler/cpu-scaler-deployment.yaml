@@ -15,12 +15,14 @@ spec:
     spec:
       nodeSelector:
         node-role: apps
+      imagePullSecrets:
+        - name: ghcr-secret
       serviceAccountName: cpu-scaler
       restartPolicy: Always
 
       containers:
         - name: cpu-scaler
-          image: lucasrueda01/cpu-scaler:dev3
+          image: ghcr.io/lucasrueda01/blockchain-cpu-scaler:test
           imagePullPolicy: Always
 
           resources:

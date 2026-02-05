@@ -15,9 +15,11 @@ spec:
     spec:
       nodeSelector:
         node-role: apps
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: coordinator
-          image: lucasrueda01/coordinador:dev3
+          image: ghcr.io/lucasrueda01/blockchain-coordinator:test
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
