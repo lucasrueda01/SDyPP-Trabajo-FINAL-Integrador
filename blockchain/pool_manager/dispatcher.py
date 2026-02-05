@@ -17,7 +17,7 @@ def dispatch_to_workers(block, alive_workers, channel):
     if not settings.COOPERATIVE_MINING:
         logger.info("Despachando %s en COMPETITIVO", block_id)
         
-        logger.info("Rango nonce completo: %d - %d. Workers vivos: %d", block["nonce_start"], block["nonce_end"], len(alive_workers))
+        logger.info("Rango nonce completo: %d - %d. Workers vivos: %d", 1, block["numMaxRandom"], len(alive_workers))
         safe_publish(
             channel,
             "blocks_competitive",
