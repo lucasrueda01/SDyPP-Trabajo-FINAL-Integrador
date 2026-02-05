@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         service:
-          - name: coordinator
+          - name: coordinador
             dockerfile: coordinador/Dockerfile
             image: blockchain-coordinator
           - name: cpu-scaler
