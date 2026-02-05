@@ -8,7 +8,7 @@ data:
   REDIS_TCP_PORT: "6379"
   
   RABBIT_HOST: rabbitmq
-  RABBIT_PORT: "5672"
+  RABBIT_TCP_PORT: "5672"
   RABBIT_VHOST: blockchain
 
   POOL_MANAGER_HOST: pool-manager

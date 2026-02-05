@@ -12,7 +12,7 @@ REDIS_PORT = int(os.getenv("REDIS_TCP_PORT", 6379))
 # ======================
 # Blockchain / Minería
 # ======================
-CPUS_PER_GPU = int(os.getenv("CPUS_PER_GPU", 4))
+CPUS_PER_GPU = int(os.getenv("CPUS_PER_GPU", 3))
 EXPECTED_GPUS = int(os.getenv("EXPECTED_GPUS", 1))
 BASE_CPU_REPLICAS = int(os.getenv("BASE_CPU_REPLICAS", 2))
 SCALE_COOLDOWN = int(os.getenv("SCALE_COOLDOWN", 60))  # segundos
