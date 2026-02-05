@@ -11,6 +11,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         service:
@@ -25,7 +26,8 @@ jobs:
             image: blockchain-pool-manager
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -34,11 +36,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build & Push
+      - name: Build & Push image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ${{ matrix.service.dockerfile }}
+          context: blockchain
+          file: blockchain/${{ matrix.service.dockerfile }}
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
 
@@ -47,19 +49,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: azure/setup-kubectl@v4
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
 
-      - name: Apply manifests
-        run: kubectl apply -f infraestructura/k8s -n ${{ env.NAMESPACE }}
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
 
-      - name: Rollout
+      - name: Rollout restart deployments
         run: |
           kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
           kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
