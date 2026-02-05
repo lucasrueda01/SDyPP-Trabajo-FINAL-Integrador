@@ -7,26 +7,29 @@ on:
 
 env:
   NAMESPACE: blockchain
+  REGISTRY: ghcr.io
 
 jobs:
   build:
+    name: Build & Push Images
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         service:
           - name: coordinador
-            dockerfile: blockchain/coordinador/Dockerfile
+            path: blockchain/coordinador
             image: blockchain-coordinator
           - name: cpu-scaler
-            dockerfile: blockchain/cpu-scaler/Dockerfile
+            path: blockchain/cpu-scaler
             image: blockchain-cpu-scaler
           - name: pool-manager
-            dockerfile: blockchain/pool_manager/Dockerfile
+            path: blockchain/pool_manager
             image: blockchain-pool-manager
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -38,20 +41,22 @@ jobs:
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
-          context: blockchain
-          file: ${{ matrix.service.dockerfile }}
+          context: ${{ matrix.service.path }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
 
   deploy:
+    name: Deploy to Kubernetes
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: azure/setup-kubectl@v4
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
         run: |
@@ -64,6 +69,10 @@ jobs:
 
       - name: Rollout restart deployments
         run: |
-          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment coordinador -n ${{ env.NAMESPACE }}
           kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
           kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
+
+      - name: Verify pods
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}

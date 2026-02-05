@@ -1,11 +1,11 @@
 import json
 import time
 import logging
-from pool_manager.rabbitmq import queue_connect
-from pool_manager.dispatcher import dispatch_to_workers
-from pool_manager.redis_workers import get_alive_workers
-from pool_manager.fragmenter import fragmentar
-from pool_manager.rabbitmq import safe_publish
+from rabbitmq import queue_connect
+from dispatcher import dispatch_to_workers
+from redis_workers import get_alive_workers
+from fragmenter import fragmentar
+from rabbitmq import safe_publish
 
 
 logger = logging.getLogger("pool-manager")

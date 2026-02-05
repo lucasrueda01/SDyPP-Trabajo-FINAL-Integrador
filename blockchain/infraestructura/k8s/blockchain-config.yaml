@@ -5,7 +5,7 @@ metadata:
   namespace: blockchain
 data:
   REDIS_HOST: redis
-  REDIS_PORT: "6379"
+  REDIS_TCP_PORT: "6379"
   
   RABBIT_HOST: rabbitmq
   RABBIT_PORT: "5672"

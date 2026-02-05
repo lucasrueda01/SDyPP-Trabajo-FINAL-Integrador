@@ -1,8 +1,8 @@
 import json
 import logging
 import config.settings as settings
-from pool_manager.fragmenter import fragmentar
-from pool_manager.rabbitmq import safe_publish
+from fragmenter import fragmentar
+from rabbitmq import safe_publish
 
 logger = logging.getLogger("pool-manager")
 

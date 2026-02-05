@@ -21,7 +21,7 @@ CPU_NETWORK = "global/networks/default"
 DEPLOYMENT_NAME = "blockchain"
 CPU_TAGS = ["worker-cpu"]
 
-STARTUP_SCRIPT_PATH = "/app/worker_cpu_startup.sh"
+STARTUP_SCRIPT_PATH = "/scripts/worker_cpu_startup.sh"
 MAX_CPU_WORKERS = 10
 
 # =========================
@@ -63,7 +63,7 @@ def load_startup_script():
 def create_cpu_worker():
     client = compute_v1.InstancesClient()
 
-    name = f"{DEPLOYMENT_NAME}-worker-cpu-{int(time.time())}"
+    name = f"temp-{DEPLOYMENT_NAME}-worker-cpu-{int(time.time())}"
 
     instance = compute_v1.Instance(
         name=name,

@@ -20,6 +20,12 @@ spec:
       serviceAccountName: cpu-scaler
       restartPolicy: Always
 
+      # 👇 PASO 3.1: volumen desde ConfigMap
+      volumes:
+        - name: worker-cpu-script
+          configMap:
+            name: worker-cpu-startup
+
       containers:
         - name: cpu-scaler
           image: ghcr.io/lucasrueda01/blockchain-cpu-scaler:test
@@ -32,12 +38,20 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
+
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
+
           envFrom:
             - configMapRef:
                 name: blockchain-config
+
+          # 👇 PASO 3.2: montar el script como archivo
+          volumeMounts:
+            - name: worker-cpu-script
+              mountPath: /scripts/worker_cpu_startup.sh
+              subPath: worker_cpu_startup.sh
 
           securityContext:
             runAsNonRoot: true

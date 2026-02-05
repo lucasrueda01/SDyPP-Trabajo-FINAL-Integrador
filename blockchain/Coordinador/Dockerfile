@@ -2,9 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY coordinador/coordinador.py .
-COPY config ./config
+# Copiamos todo el contenido del servicio
+COPY . .
 
-RUN pip install flask pika redis google-cloud-storage python-dotenv
+# Instalamos dependencias
+RUN pip install --no-cache-dir \
+    flask \
+    pika \
+    redis \
+    google-cloud-storage \
+    python-dotenv
 
+# Comando de arranque
 CMD ["python", "coordinador.py"]

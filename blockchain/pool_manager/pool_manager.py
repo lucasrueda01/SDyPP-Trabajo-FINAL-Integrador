@@ -1,8 +1,8 @@
 import threading
 from flask import Flask, request, jsonify
 import config.settings as settings
-from pool_manager.redis_workers import redis_connect, register_worker, heartbeat
-from pool_manager.consumers import start_pool_consumer, start_dlq_consumer
+from redis_workers import redis_connect, register_worker, heartbeat
+from consumers import start_pool_consumer, start_dlq_consumer
 import logging
 import sys
 

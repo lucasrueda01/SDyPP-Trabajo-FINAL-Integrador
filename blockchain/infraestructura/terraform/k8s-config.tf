@@ -20,3 +20,14 @@ resource "kubernetes_config_map_v1" "blockchain_config" {
 
   depends_on = [google_container_cluster.primary]
 }
+
+resource "kubernetes_config_map_v1" "worker_cpu_script" {
+  metadata {
+    name      = "worker-cpu-startup"
+    namespace = "blockchain"
+  }
+
+  data = {
+    "worker_cpu_startup.sh" = file("${path.module}/templates/worker_cpu_startup.sh")
+  }
+}
