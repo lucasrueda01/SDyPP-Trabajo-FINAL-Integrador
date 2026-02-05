@@ -1,39 +1,105 @@
-build:
-  runs-on: ubuntu-latest
-  strategy:
-    matrix:
-      service:
-        - name: coordinador
-          path: blockchain/coordinador
-          image: blockchain-coordinator
-        - name: cpu-scaler
-          path: blockchain/cpu-scaler
-          image: blockchain-cpu-scaler
-        - name: pool-manager
-          path: blockchain/pool_manager
-          image: blockchain-pool-manager
+name: build-and-deploy
 
-  steps:
-    - uses: actions/checkout@v4
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-    - uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_TOKEN }}
+env:
+  NAMESPACE: blockchain
+  PROJECT_ID: TU_PROJECT_ID
+  CLUSTER_NAME: TU_CLUSTER_NAME
+  CLUSTER_REGION: TU_REGION
 
-    # 🔹 Servicios Kubernetes
-    - name: Build & Push ${{ matrix.service.name }}
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ matrix.service.path }}
-        push: true
-        tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+jobs:
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
 
-    # 🔹 Worker CPU (fuera de K8s)
-    - name: Build & Push worker-cpu (VM only)
-      uses: docker/build-push-action@v5
-      with:
-        context: blockchain/minero/cpu
-        push: true
-        tags: ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}
+    strategy:
+      matrix:
+        service:
+          - name: coordinador
+            path: blockchain/coordinador
+            image: blockchain-coordinator
+          - name: cpu-scaler
+            path: blockchain/cpu-scaler
+            image: blockchain-cpu-scaler
+          - name: pool-manager
+            path: blockchain/pool_manager
+            image: blockchain-pool-manager
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      # 🔹 Servicios que viven en Kubernetes
+      - name: Build & Push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.path }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+
+      # 🔹 Worker CPU (NO Kubernetes)
+      - name: Build & Push worker-cpu (VM only)
+        uses: docker/build-push-action@v5
+        with:
+          context: blockchain/minero/cpu
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}
+
+  deploy:
+    name: Deploy to GKE
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 🔐 Autenticación con GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # ☁️ Instalar gcloud + plugin GKE
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          install_components: gke-gcloud-auth-plugin
+
+      # 🎯 Obtener kubeconfig válido en el runner
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region $CLUSTER_REGION \
+            --project $PROJECT_ID
+
+      # 🚀 Apply manifests
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
+
+      # 🔄 Rollout
+      - name: Rollout restart deployments
+        run: |
+          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
+
+      # 🔍 Verificación básica
+      - name: Verify pods
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
