@@ -1,23 +1,73 @@
-name: build-test
+name: build-and-deploy
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
+
+env:
+  NAMESPACE: blockchain
+  REGISTRY: ghcr.io
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+    strategy:
+      matrix:
+        service:
+          - name: coordinador
+            dockerfile: blockchain/coordinador/Dockerfile
+            image: blockchain-coordinator
+          - name: cpu-scaler
+            dockerfile: blockchain/cpu-scaler/Dockerfile
+            image: blockchain-cpu-scaler
+          - name: pool-manager
+            dockerfile: blockchain/pool_manager/Dockerfile
+            image: blockchain-pool-manager
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - uses: docker/build-push-action@v5
+      - name: Build & Push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
         with:
-          context: blockchain
-          file: blockchain/coordinador/Dockerfile
+          context: .
+          file: ${{ matrix.service.dockerfile }}
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/blockchain-coordinator:test
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
+
+      - name: Rollout restart deployments
+        run: |
+          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
