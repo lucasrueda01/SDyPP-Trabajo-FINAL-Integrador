@@ -2,8 +2,8 @@ name: build-and-deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   NAMESPACE: blockchain
@@ -15,19 +15,19 @@ jobs:
     strategy:
       matrix:
         service:
-          - name: coordinador
+          - image: blockchain-coordinator
             dockerfile: coordinador/Dockerfile
-            image: blockchain-coordinator
-          - name: cpu-scaler
+          - image: blockchain-cpu-scaler
             dockerfile: cpu-scaler/Dockerfile
-            image: blockchain-cpu-scaler
-          - name: pool-manager
+          - image: blockchain-pool-manager
             dockerfile: pool_manager/Dockerfile
-            image: blockchain-pool-manager
+
+    defaults:
+      run:
+        working-directory: blockchain
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -36,11 +36,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build & Push image
+      - name: Build & Push
         uses: docker/build-push-action@v5
         with:
-          context: blockchain
-          file: blockchain/${{ matrix.service.dockerfile }}
+          context: .
+          file: ${{ matrix.service.dockerfile }}
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
 
@@ -49,22 +49,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
 
-      - name: Apply Kubernetes manifests
+      - name: Apply manifests
         run: |
           kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
 
-      - name: Rollout restart deployments
+      - name: Rollout
         run: |
           kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
           kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
