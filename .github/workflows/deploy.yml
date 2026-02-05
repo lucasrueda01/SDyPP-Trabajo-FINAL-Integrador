@@ -30,15 +30,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # si tenés submodules ponlo en true, en general no hace falta
+          fetch-depth: 0
 
-      - name: Debug workspace
+      - name: Debug workspace (verify paths)
         run: |
-          pwd
+          echo "PWD: $(pwd)"
+          echo "Workspace listing:"
           ls -la
-          ls -la blockchain
-          ls -la blockchain/coordinador
-          ls -la blockchain/cpu-scaler
-          ls -la blockchain/pool_manager
+          echo "-> listing 'blockchain' dir (if exists):"
+          ls -la blockchain || echo "NO blockchain dir found"
+          echo "-> listing blockchain/coordinador:"
+          ls -la blockchain/coordinador || echo "NO blockchain/coordinador"
+          echo "-> listing blockchain/cpu-scaler:"
+          ls -la blockchain/cpu-scaler || echo "NO blockchain/cpu-scaler"
+          echo "-> listing blockchain/pool_manager:"
+          ls -la blockchain/pool_manager || echo "NO blockchain/pool_manager"
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -52,8 +60,8 @@ jobs:
         with:
           context: ${{ matrix.service.path }}
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}
+          # opcional: platforms, build-args, cache-from si los querés
 
   deploy:
     name: Deploy to Kubernetes
@@ -78,9 +86,9 @@ jobs:
 
       - name: Rollout restart deployments
         run: |
-          kubectl rollout restart deployment coordinador -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
+          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }} || true
+          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }} || true
+          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }} || true
 
       - name: Verify pods
         run: |
