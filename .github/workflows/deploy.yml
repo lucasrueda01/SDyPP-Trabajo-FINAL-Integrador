@@ -31,6 +31,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug workspace
+        run: |
+          pwd
+          ls -la
+          ls -la blockchain
+          ls -la blockchain/coordinador
+          ls -la blockchain/cpu-scaler
+          ls -la blockchain/pool_manager
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
