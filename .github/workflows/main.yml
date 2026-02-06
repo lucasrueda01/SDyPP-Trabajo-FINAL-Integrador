@@ -12,8 +12,11 @@ env:
   CLUSTER_REGION: us-central1
 
 jobs:
-  build:
-    name: Build & Push Images
+  # =========================================================
+  # 1) BUILD DE SERVICIOS KUBERNETES (MATRIX)
+  # =========================================================
+  build-services:
+    name: Build K8s Services
     runs-on: ubuntu-latest
 
     strategy:
@@ -30,15 +33,16 @@ jobs:
             image: blockchain-pool-manager
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # 🔹 Servicios Kubernetes
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
@@ -48,7 +52,24 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
 
-      # 🔹 Worker CPU (VM only)
+  # =========================================================
+  # 2) BUILD DEL WORKER CPU (UNA SOLA VEZ)
+  # =========================================================
+  build-worker-cpu:
+    name: Build Worker CPU
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
       - name: Build & Push worker-cpu
         uses: docker/build-push-action@v5
         with:
@@ -58,31 +79,41 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/worker-cpu:latest
             ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}-${{ github.run_number }}
 
+  # =========================================================
+  # 3) DEPLOY A GKE (DEPENDE DE AMBOS BUILDS)
+  # =========================================================
   deploy:
     name: Deploy to GKE
-    needs: build
+    needs:
+      - build-services
+      - build-worker-cpu
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      # 🔐 Auth GCP
-      - uses: google-github-actions/auth@v2
+      # 🔐 Autenticación con GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      # ☁️ Instalar gcloud + plugin de GKE
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
+      # 🎯 Obtener kubeconfig válido en el runner
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🧬 Inyectar tags efímeras
+      # 🧬 Inyectar tags efímeras con Kustomize
       - name: Set image tags with Kustomize
         run: |
           cd blockchain/infraestructura/k8s
@@ -92,10 +123,11 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
 
       # 🚀 Deploy real
-      - name: Apply manifests
+      - name: Apply Kubernetes manifests
         run: |
           kubectl apply -k blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
 
+      # 🔍 Verificación básica
       - name: Verify pods
         run: |
           kubectl get pods -n ${{ env.NAMESPACE }}

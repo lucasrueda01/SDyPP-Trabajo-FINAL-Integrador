@@ -4,16 +4,25 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - blockchain-config.yaml
-  - coordinator
-  - cpu-scaler
-  - pool-manager
-  - rabbitmq
-  - redis
+
+  - coordinator/coordinator-deployment.yaml
+  - coordinator/coordinator-service.yaml
+
+  - cpu-scaler/cpu-scaler-deployment.yaml
+  - cpu-scaler/cpu-scaler-service-account.yaml
+
+  - pool-manager/pool-manager-deployment.yaml
+  - pool-manager/pool-manager-service.yaml
+
+  - rabbitmq/rabbitmq-secret.yaml
+  - rabbitmq/rabbitmq-service.yaml
+  - rabbitmq/rabbitmq-service-external.yaml
+  - rabbitmq/rabbitmq-statefulset.yaml
+
+  - redis/redis-service.yaml
+  - redis/redis-statefulset.yaml
 
 images:
   - name: ghcr.io/lucasrueda01/blockchain-coordinator
-    newTag: latest
   - name: ghcr.io/lucasrueda01/blockchain-cpu-scaler
-    newTag: latest
   - name: ghcr.io/lucasrueda01/blockchain-pool-manager
-    newTag: latest
