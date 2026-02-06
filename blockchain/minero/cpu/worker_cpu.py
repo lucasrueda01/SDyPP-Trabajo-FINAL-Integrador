@@ -308,11 +308,11 @@ def heartbeat_loop():
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
         try:
-            resp = requests.post(url, json={"id": WORKER_ID}, timeout=3)
+            resp = requests.post(url, json={"id": WORKER_ID, "type": "cpu"}, timeout=3)
             if resp.status_code == 404:
                 logger.debug("[%s] Solicitando re-registro", WORKER_ID)
                 register()
-            
+
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
         time.sleep(settings.HEARTBEAT_TTL // 2)

@@ -19,7 +19,6 @@ def redis_connect():
 
 
 def register_worker(redis_client, wid, data, ip):
-
     worker_data = {
         "id": wid,
         "type": data["type"],
@@ -27,18 +26,25 @@ def register_worker(redis_client, wid, data, ip):
         "ip": ip,
     }
 
-    redis_client.set(
+    created = redis_client.set(
         f"worker:{wid}",
         json.dumps(worker_data),
-        ex=settings.HEARTBEAT_TTL + 5,
+        ex=settings.HEARTBEAT_TTL,
+        nx=True,  # 👈 clave para evitar flapping
     )
-    
-    logger.info(
-        "Worker registrado: id=%s type=%s ip=%s",
-        wid,
-        worker_data["type"],
-        ip,
-    )
+
+    if created:
+        logger.info(
+            "Worker registrado: id=%s type=%s ip=%s",
+            wid,
+            worker_data["type"],
+            ip,
+        )
+    else:
+        logger.debug(
+            "Worker %s ya registrado, no se recrea",
+            wid,
+        )
 
     return worker_data
 
@@ -52,8 +58,6 @@ def heartbeat(redis_client, wid):
         return True
 
     return False
-
-
 
 
 def get_alive_workers(redis_client):

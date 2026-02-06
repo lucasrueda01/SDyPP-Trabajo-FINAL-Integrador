@@ -39,14 +39,24 @@ def register():
 @app.route("/heartbeat", methods=["POST"])
 def hb():
     data = request.get_json()
-    ok = heartbeat(redis_client, data["id"])
+    wid = data["id"]
+    type = data.get("type", "unknown")
+
+    ok = heartbeat(redis_client, wid)
 
     if not ok:
-        return jsonify({"error": "not registered"}), 404
+        logger.warning(
+            "Heartbeat de %s sin registro previo, recreando estado",
+            wid,
+        )
+        register_worker(
+            redis_client,
+            wid,
+            data={"type": type},
+            ip=request.remote_addr,
+        )
 
     return jsonify({"status": "ok"})
-
-
 
 
 threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=True).start()
