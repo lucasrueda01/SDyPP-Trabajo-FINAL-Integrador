@@ -30,17 +30,15 @@ jobs:
             image: blockchain-pool-manager
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # 🔹 Servicios que viven en Kubernetes
+      # 🔹 Servicios Kubernetes
       - name: Build & Push ${{ matrix.service.name }}
         uses: docker/build-push-action@v5
         with:
@@ -50,8 +48,8 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
 
-      # 🔹 Worker CPU (NO Kubernetes)
-      - name: Build & Push worker-cpu (VM only)
+      # 🔹 Worker CPU (VM only)
+      - name: Build & Push worker-cpu
         uses: docker/build-push-action@v5
         with:
           context: blockchain/minero/cpu
@@ -66,42 +64,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 🔐 Autenticación con GCP
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      # 🔐 Auth GCP
+      - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # ☁️ Instalar gcloud + plugin GKE
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🎯 Obtener kubeconfig válido en el runner
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🚀 Apply manifests
-      - name: Apply Kubernetes manifests
+      # 🧬 Inyectar tags efímeras
+      - name: Set image tags with Kustomize
         run: |
-          kubectl apply -R -f blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
+          cd blockchain/infraestructura/k8s
+          kustomize edit set image \
+            ghcr.io/${{ github.repository_owner }}/blockchain-coordinator=ghcr.io/${{ github.repository_owner }}/blockchain-coordinator:sha-${{ github.sha }}-${{ github.run_number }} \
+            ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler=ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler:sha-${{ github.sha }}-${{ github.run_number }} \
+            ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
 
-      # 🔄 Rollout
-      - name: Rollout restart deployments
+      # 🚀 Deploy real
+      - name: Apply manifests
         run: |
-          kubectl rollout restart deployment coordinator -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment cpu-scaler -n ${{ env.NAMESPACE }}
-          kubectl rollout restart deployment pool-manager -n ${{ env.NAMESPACE }}
+          kubectl apply -k blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
 
-      # 🔍 Verificación básica
       - name: Verify pods
         run: |
           kubectl get pods -n ${{ env.NAMESPACE }}

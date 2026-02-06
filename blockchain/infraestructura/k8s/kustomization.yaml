@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - blockchain-config.yaml
+  - coordinator
+  - cpu-scaler
+  - pool-manager
+  - rabbitmq
+  - redis
+
+images:
+  - name: ghcr.io/lucasrueda01/blockchain-coordinator
+    newTag: latest
+  - name: ghcr.io/lucasrueda01/blockchain-cpu-scaler
+    newTag: latest
+  - name: ghcr.io/lucasrueda01/blockchain-pool-manager
+    newTag: latest

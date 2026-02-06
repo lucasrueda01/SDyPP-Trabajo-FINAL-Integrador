@@ -1,11 +1,15 @@
 services:
   worker-gpu:
-    image: lucasrueda01/worker-gpu:dev
+    image: lucasrueda01/worker-gpu:latest
     container_name: worker-gpu
     restart: unless-stopped
 
     environment:
-      RABBIT_URL: "amqp://blockchain:blockchain123@34.42.128.134:5672/blockchain"
+      RABBIT_USER: blockchain
+      RABBIT_PASSWORD : blockchain123
+      RABBIT_HOST : 34.42.128.134
+      RABBIT_PORT : "5672"
+      RABBIT_VHOST : blockchain
       COORDINADOR_HOST: 146.148.44.118
       COORDINADOR_PORT: "5000"
       POOL_MANAGER_HOST: 34.67.190.185

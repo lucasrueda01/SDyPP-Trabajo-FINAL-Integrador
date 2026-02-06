@@ -8,7 +8,7 @@ import logging
 import sys
 
 import pika
-from minero.gpu import minero_gpu
+from minero_gpu import ejecutar_minero
 import config.settings as settings
 
 # -----------------------
@@ -114,7 +114,7 @@ def on_message_received(ch, method, _, body):
         )
 
         start_time = time.time()
-        resultado_raw = minero_gpu.ejecutar_minero(
+        resultado_raw = ejecutar_minero(
             from_nonce, to_nonce, prefix, hash_base
         )
 
