@@ -48,6 +48,7 @@ jobs:
         with:
           context: ${{ matrix.service.path }}
           push: true
+          no-cache: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
@@ -75,6 +76,7 @@ jobs:
         with:
           context: blockchain/minero/cpu
           push: true
+          no-cache: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/worker-cpu:latest
             ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}-${{ github.run_number }}
