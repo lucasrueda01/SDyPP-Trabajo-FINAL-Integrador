@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 env:
-  NAMESPACE: blockchain
   PROJECT_ID: dulcet-thinker-485219-q1
   CLUSTER_NAME: cluster-blockchain
   CLUSTER_REGION: us-central1
@@ -127,9 +126,11 @@ jobs:
       # 🚀 Deploy real
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -k blockchain/infraestructura/k8s -n ${{ env.NAMESPACE }}
+          kubectl apply -k blockchain/infraestructura/k8s
 
       # 🔍 Verificación básica
-      - name: Verify pods
-        run: |
-          kubectl get pods -n ${{ env.NAMESPACE }}
+      - name: Verify pods (apps)
+        run: kubectl get pods -n blockchain-apps
+
+      - name: Verify pods (infra)
+        run: kubectl get pods -n blockchain-infra

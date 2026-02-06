@@ -257,15 +257,37 @@ def main():
         durable=True,
     )
 
-    # Dead Letter Exchange y Queue
+    # DLX (idempotente)
+    channel.exchange_declare(
+        exchange="dlx.tasks",
+        exchange_type="direct",
+        durable=True,
+    )
+
+    # Cola DLQ
+    channel.queue_declare(
+        queue="queue.dlq",
+        durable=True,
+    )
+
+    # Binding DLQ
+    channel.queue_bind(
+        exchange="dlx.tasks",
+        queue="queue.dlq",
+        routing_key="dlq",
+    )
+
+    # Cola GPU con TTL + DLQ
     channel.queue_declare(
         queue="queue.gpu",
         durable=True,
         arguments={
-            "x-message-ttl": 60000,
+            "x-message-ttl": 60000,  # 60s
             "x-dead-letter-exchange": "dlx.tasks",
+            "x-dead-letter-routing-key": "dlq",
         },
     )
+
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
         queue="queue.gpu",

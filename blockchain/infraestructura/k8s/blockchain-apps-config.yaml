@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: blockchain-config
-  namespace: blockchain
+  name: blockchain-app-config
+  namespace: blockchain-apps
 data:
-  REDIS_HOST: redis
+  REDIS_HOST: redis.blockchain-infra
   REDIS_TCP_PORT: "6379"
-  
-  RABBIT_HOST: rabbitmq
+
+  RABBIT_HOST: rabbitmq.blockchain-infra
   RABBIT_TCP_PORT: "5672"
   RABBIT_VHOST: blockchain
 
@@ -19,7 +19,9 @@ data:
 
   PROCESSING_TIME: "15"
   MAX_TRANSACTIONS_PER_BLOCK: "20"
+
   BUCKET_NAME: bucket-integrador-dulcet-thinker-485219-q1
+
   DIFFICULTY_LOW: "3"
   DIFFICULTY_HIGH: "6"
   BASE_STRING_CHAIN: "A3F8"
@@ -27,15 +29,5 @@ data:
 
   COOPERATIVE_MINING: "False"
 
-  CPU_CAPACITY: "10"
-  GPU_CAPACITY: "100"
-  EXPECTED_GPUS: "1"
-  HEARTBEAT_TTL: "30"
-  BASE_CPU_REPLICAS: "2"
-  SCALE_COOLDOWN: "60"
-  SCALE_INTERVAL: "10"
-  CPUS_PER_GPU: "3"
-
   DEBUG: "True"
-
   TZ: "America/Argentina/Buenos_Aires"

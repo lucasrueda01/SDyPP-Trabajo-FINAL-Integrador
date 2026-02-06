@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pool-manager
-  namespace: blockchain
+  namespace: blockchain-apps
 spec:
   replicas: 2
   selector:
@@ -28,6 +28,6 @@ spec:
               value: "1"
           envFrom:
             - configMapRef:
-                name: blockchain-config
+                name: blockchain-app-config
             - secretRef:
                 name: rabbitmq-credentials

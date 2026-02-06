@@ -3,7 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - blockchain-config.yaml
+  - blockchain-apps-config.yaml
+  - blockchain-infra-config.yaml
 
   - coordinator/coordinator-deployment.yaml
   - coordinator/coordinator-service.yaml
@@ -14,7 +15,8 @@ resources:
   - pool-manager/pool-manager-deployment.yaml
   - pool-manager/pool-manager-service.yaml
 
-  - rabbitmq/rabbitmq-secret.yaml
+  - rabbitmq/rabbitmq-secret-apps.yaml
+  - rabbitmq/rabbitmq-secret-infra.yaml
   - rabbitmq/rabbitmq-service.yaml
   - rabbitmq/rabbitmq-service-external.yaml
   - rabbitmq/rabbitmq-statefulset.yaml

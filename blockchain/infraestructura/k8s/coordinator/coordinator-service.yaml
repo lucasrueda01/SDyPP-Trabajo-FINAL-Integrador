@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: coordinator
-  namespace: blockchain
+  namespace: blockchain-apps
 spec:
   type: LoadBalancer
   selector:

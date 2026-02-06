@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blockchain-infra-config
+  namespace: blockchain-infra
+data:
+  REDIS_HOST: redis
+  REDIS_TCP_PORT: "6379"
+
+  RABBIT_HOST: rabbitmq
+  RABBIT_TCP_PORT: "5672"
+  RABBIT_VHOST: blockchain
+
+  HEARTBEAT_TTL: "30"
+
+  BASE_CPU_REPLICAS: "2"
+  CPUS_PER_GPU: "3"
+  EXPECTED_GPUS: "1"
+  SCALE_COOLDOWN: "60"
+  SCALE_INTERVAL: "10"
+
+  CPU_CAPACITY: "10"
+  GPU_CAPACITY: "100"
+
+  DEBUG: "True"
+  TZ: "America/Argentina/Buenos_Aires"

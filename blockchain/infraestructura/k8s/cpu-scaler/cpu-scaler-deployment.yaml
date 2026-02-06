@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cpu-scaler
-  namespace: blockchain
+  namespace: blockchain-infra
 spec:
   replicas: 2
   selector:
@@ -14,13 +14,12 @@ spec:
         app: cpu-scaler
     spec:
       nodeSelector:
-        node-role: apps
+        node-role: infra
       imagePullSecrets:
         - name: ghcr-secret
       serviceAccountName: cpu-scaler
       restartPolicy: Always
 
-      # 👇 PASO 3.1: volumen desde ConfigMap
       volumes:
         - name: worker-cpu-script
           configMap:
@@ -45,9 +44,8 @@ spec:
 
           envFrom:
             - configMapRef:
-                name: blockchain-config
+                name: blockchain-infra-config
 
-          # 👇 PASO 3.2: montar el script como archivo
           volumeMounts:
             - name: worker-cpu-script
               mountPath: /scripts/worker_cpu_startup.sh
