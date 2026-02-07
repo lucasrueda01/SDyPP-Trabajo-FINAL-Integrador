@@ -22,5 +22,7 @@ data:
   CPU_CAPACITY: "10"
   GPU_CAPACITY: "100"
 
+  AUTOSCALER = "False"
+
   DEBUG: "True"
   TZ: "America/Argentina/Buenos_Aires"

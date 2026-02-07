@@ -6,16 +6,16 @@ echo "Inicializando worker CPU..."
 # -----------------------------
 # Variables de entorno
 # -----------------------------
-export COORDINADOR_HOST="146.148.44.118"
+export COORDINADOR_HOST="136.119.226.21"
 export COORDINADOR_PORT="5000"
 
-export RABBIT_HOST="34.42.128.134"
+export RABBIT_HOST="34.58.166.241"
 export RABBIT_USER="blockchain"
 export RABBIT_PASSWORD="blockchain123"
 export RABBIT_PORT="5672"
 export RABBIT_VHOST="blockchain"
 
-export POOL_MANAGER_HOST="34.67.190.185"
+export POOL_MANAGER_HOST="136.113.41.39"
 export POOL_MANAGER_PORT="6000"
 
 export CPU_CAPACITY="10"
