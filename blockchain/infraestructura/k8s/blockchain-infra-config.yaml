@@ -14,7 +14,7 @@ data:
   HEARTBEAT_TTL: "30"
 
   BASE_CPU_REPLICAS: "2"
-  CPUS_PER_GPU: "3"
+  CPUS_PER_GPU: "2"
   EXPECTED_GPUS: "1"
   SCALE_COOLDOWN: "60"
   SCALE_INTERVAL: "10"
@@ -22,7 +22,7 @@ data:
   CPU_CAPACITY: "10"
   GPU_CAPACITY: "100"
 
-  AUTOSCALER = "False"
+  AUTOSCALER : "False"
 
   DEBUG: "True"
   TZ: "America/Argentina/Buenos_Aires"
