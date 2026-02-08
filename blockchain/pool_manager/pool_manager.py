@@ -5,6 +5,8 @@ from redis_workers import redis_connect, register_worker, heartbeat
 from consumers import start_pool_consumer, start_dlq_consumer
 import logging
 import sys
+import time
+import metrics
 
 app = Flask(__name__)
 redis_client = redis_connect()
@@ -33,11 +35,13 @@ def register():
     data = request.get_json()
     wid = data["id"]
     register_worker(redis_client, wid, data, request.remote_addr)
+    metrics.pool_worker_registrations.inc()
     return jsonify({"status": "ok"})
 
 
 @app.route("/heartbeat", methods=["POST"])
 def hb():
+    metrics.update_uptime()
     data = request.get_json()
     wid = data["id"]
     type = data.get("type", "unknown")
@@ -55,10 +59,11 @@ def hb():
             data={"type": type},
             ip=request.remote_addr,
         )
-
+    metrics.pool_worker_heartbeats.inc()
     return jsonify({"status": "ok"})
 
 
+metrics.start_metrics_server(8000)
 threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=True).start()
 threading.Thread(target=start_dlq_consumer, args=(redis_client,), daemon=True).start()
 

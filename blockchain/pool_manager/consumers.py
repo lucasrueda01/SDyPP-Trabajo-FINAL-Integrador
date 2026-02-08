@@ -6,6 +6,7 @@ from dispatcher import dispatch_to_workers
 from redis_workers import get_alive_workers
 from fragmenter import fragmentar
 from rabbitmq import safe_publish
+import metrics
 
 
 logger = logging.getLogger("pool-manager")
@@ -18,6 +19,7 @@ def start_pool_consumer(redis_client):
     def on_message(ch, method, properties, body):
 
         block = json.loads(body)
+        metrics.pool_blocks_received.inc()
         alive, _ = get_alive_workers(redis_client)
 
         ok = dispatch_to_workers(block, alive, channel)
@@ -29,9 +31,11 @@ def start_pool_consumer(redis_client):
 
         if ok:
             ch.basic_ack(method.delivery_tag)
+            metrics.blocks_dispatched_total.inc()
             logger.info("Bloque %s despachado correctamente", block["blockId"])
         else:
             time.sleep(5)
+            metrics.blocks_failed_total.inc()
             ch.basic_nack(method.delivery_tag, requeue=True)
 
     channel.basic_consume(
@@ -67,6 +71,7 @@ def start_dlq_consumer(redis_client):
 
     def on_dlq(ch, method, properties, body):
         block = json.loads(body)
+        metrics.blocks_dlq_total.inc()
 
         logger.warning(
             "DLQ: mensaje expirado blockId=%s",
