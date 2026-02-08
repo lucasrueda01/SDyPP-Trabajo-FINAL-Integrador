@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir \
     pika \
     redis \
     requests \
-    python-dotenv
+    python-dotenv \
+    prometheus_client
 
 # Ejecutamos como módulo (imports correctos)
 CMD ["python", "pool_manager.py"]
