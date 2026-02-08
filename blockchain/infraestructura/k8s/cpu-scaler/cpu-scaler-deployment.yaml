@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: cpu-scaler
   namespace: blockchain-infra
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+
 spec:
   replicas: 2
   selector:

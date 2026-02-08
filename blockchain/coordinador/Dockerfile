@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir \
     pika \
     redis \
     google-cloud-storage \
-    python-dotenv
+    python-dotenv \
+    prometheus_client
 
 # Comando de arranque
 CMD ["python", "coordinador.py"]

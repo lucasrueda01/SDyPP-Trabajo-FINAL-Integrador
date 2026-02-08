@@ -10,10 +10,45 @@ from flask import Flask, jsonify, request
 import pika
 import redis
 from google.cloud import storage
-
+from prometheus_client import (
+    Counter,
+    Gauge,
+    Histogram,
+    start_http_server,
+)
 import config.settings as settings
 
+start_http_server(8000)
+
 app = Flask(__name__)
+
+# -----------------------
+# Prometheus metrics
+# -----------------------
+start_time = time.time()
+
+transactions_total = Counter(
+    "coordinator_transactions_total", "Total de transacciones recibidas"
+)
+
+blocks_created_total = Counter(
+    "coordinator_blocks_created_total", "Total de bloques creados"
+)
+
+blocks_accepted_total = Counter(
+    "coordinator_blocks_accepted_total", "Total de bloques aceptados"
+)
+
+blocks_rejected_total = Counter(
+    "coordinator_blocks_rejected_total", "Total de bloques rechazados"
+)
+
+errors_total = Counter("coordinator_errors_total", "Errores internos del coordinador")
+
+gpus_alive_gauge = Gauge("coordinator_gpus_alive", "Cantidad de workers GPU vivos")
+
+uptime_gauge = Gauge("coordinator_uptime_seconds", "Uptime del coordinador en segundos")
+
 
 # -----------------------
 # Logging
@@ -213,7 +248,8 @@ def addTransaction():
     tx = request.json
     if not validarTransaction(tx):
         return "Transacción inválida", 400
-
+    
+    transactions_total.inc()
     encolar(tx)
     return "Transacción aceptada", 202
 
@@ -245,12 +281,14 @@ def receive_solved_task():
             worker_id,
             block_id,
         )
+        blocks_rejected_total.inc()
         return jsonify({"message": "Bloque ya cerrado"}), 202
 
     # -----------------------
     # 2) Claim exclusivo (competencia)
     # -----------------------
     if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
+        blocks_rejected_total.inc()
         return jsonify({"message": "Bloque ya reclamado"}), 202
 
     try:
@@ -261,6 +299,7 @@ def receive_solved_task():
         if not block:
             redisClient.set(status_key, "SEALED")
             redisClient.delete(claim_key)
+            blocks_rejected_total.inc()
             return jsonify({"message": "Bloque ya cerrado"}), 202
 
         # -----------------------
@@ -271,6 +310,7 @@ def receive_solved_task():
 
         if hash_calc != data["hash"]:
             redisClient.delete(claim_key)
+            blocks_rejected_total.inc()
             return jsonify({"message": "Hash inválido"}), 202
 
         # -----------------------
@@ -279,6 +319,7 @@ def receive_solved_task():
         if existBlock(block_id):
             redisClient.set(status_key, "SEALED")
             redisClient.delete(claim_key)
+            blocks_rejected_total.inc()
             return jsonify({"message": "Bloque ya existe"}), 202
 
         # -----------------------
@@ -314,6 +355,8 @@ def receive_solved_task():
             block_id,
             worker_id,
         )
+        blocks_accepted_total.inc()
+
         return jsonify({"message": "Bloque aceptado"}), 201
 
     except Exception:
@@ -323,6 +366,7 @@ def receive_solved_task():
             worker_id,
             block_id,
         )
+        errors_total.inc()
         return jsonify({"message": "Error interno"}), 500
 
 
@@ -332,6 +376,9 @@ def receive_solved_task():
 def processPackages():
     while True:
         txs = []
+        gpus_alive_gauge.set(gpus_vivas())
+        uptime_gauge.set(time.time() - start_time)
+
         for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
             method_frame, _, body = channel.basic_get(queue="QueueTransactions")
             if not method_frame:
@@ -341,16 +388,17 @@ def processPackages():
 
         if txs:
             blockId = str(uuid.uuid4())
+            blocks_created_total.inc()
             last = getUltimoBlock()
-            
+
             requested_difficulties = [
                 tx["requested_difficulty"] for tx in txs if "requested_difficulty" in tx
             ]
 
-            if requested_difficulties: # Si se pide explícitamente, usar la mayor
+            if requested_difficulties:  # Si se pide explícitamente, usar la mayor
                 final_difficulty = max(requested_difficulties)
 
-            else: # Si no, ajustar según GPUs vivas
+            else:  # Si no, ajustar según GPUs vivas
                 gpus = gpus_vivas()
                 if gpus == 0:
                     final_difficulty = settings.DIFFICULTY_LOW
