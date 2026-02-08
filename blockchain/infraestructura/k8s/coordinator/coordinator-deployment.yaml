@@ -3,10 +3,6 @@ kind: Deployment
 metadata:
   name: coordinator
   namespace: blockchain-apps
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "8000"
-    prometheus.io/path: "/metrics"
 spec:
   replicas: 2
   selector:
@@ -16,6 +12,10 @@ spec:
     metadata:
       labels:
         app: coordinator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
       nodeSelector:
         node-role: apps

@@ -3,10 +3,6 @@ kind: Deployment
 metadata:
   name: pool-manager
   namespace: blockchain-apps
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "8000"
-    prometheus.io/path: "/metrics"
 spec:
   replicas: 2
   selector:
@@ -16,6 +12,10 @@ spec:
     metadata:
       labels:
         app: pool-manager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
       nodeSelector:
         node-role: apps
