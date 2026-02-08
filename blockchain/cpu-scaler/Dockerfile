@@ -5,7 +5,8 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     redis \
     google-cloud-compute \
-    python-dotenv
+    python-dotenv \
+    prometheus_client
 
 COPY . .
 

@@ -5,6 +5,8 @@ import redis
 
 import config.settings as settings
 from google.cloud import compute_v1
+import metrics
+
 
 # =========================
 # CONFIG GCP (constantes)
@@ -129,6 +131,7 @@ def delete_cpu_worker(instance_name):
 
 # ---------- Lógica de escalado ----------
 def reconcile(redis_client):
+    metrics.reconciliations_total.inc()
     global last_scale_time
 
     now = time.time()
@@ -139,12 +142,17 @@ def reconcile(redis_client):
     gpu_alive = [w for w in alive if w.get("type") == "gpu"]
 
     missing_gpus = max(settings.EXPECTED_GPUS - len(gpu_alive), 0)
+    metrics.gpus_missing.set(missing_gpus)
 
     if missing_gpus > 0:
         target_cpu = settings.BASE_CPU_REPLICAS + (missing_gpus * settings.CPUS_PER_GPU)
         target_cpu = min(target_cpu, MAX_CPU_WORKERS)
+        metrics.target_cpu_workers.set(target_cpu)
+
 
         dynamic_instances = list_dynamic_cpu_instances()
+        metrics.dynamic_cpu_workers.set(len(dynamic_instances))
+
         effective_cpu = settings.BASE_CPU_REPLICAS + len(dynamic_instances)
 
         to_create = target_cpu - effective_cpu
@@ -155,8 +163,10 @@ def reconcile(redis_client):
                 missing_gpus,
                 to_create,
             )
+            metrics.scale_up_total.inc()
             for _ in range(to_create):
                 create_cpu_worker()
+                metrics.vm_created_total.inc()
 
     else:
         # GPU volvió → eliminar TODOS los CPUs dinámicos
@@ -169,6 +179,7 @@ def reconcile(redis_client):
             )
             for name in dynamic_instances:
                 delete_cpu_worker(name)
+                metrics.vm_deleted_total.inc()
 
     last_scale_time = now
 
@@ -176,11 +187,14 @@ def reconcile(redis_client):
 # ---------- Main loop ----------
 def main():
     redis_client = redis_connect()
+    metrics.start_metrics_server(8000)
 
     while True:
+        metrics.update_uptime()
         try:
             reconcile(redis_client)
         except Exception as e:
+            metrics.errors_total.inc()
             logger.error("Error en cpu-scaler: %s", e)
 
         time.sleep(settings.SCALE_INTERVAL)
