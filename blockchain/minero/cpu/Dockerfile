@@ -8,7 +8,8 @@ COPY . .
 RUN pip install --no-cache-dir \
     pika \
     requests \
-    python-dotenv
+    python-dotenv \
+    prometheus_client
 
 # Ejecutamos el worker directamente
 CMD ["python", "worker_cpu.py"]

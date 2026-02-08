@@ -59,7 +59,8 @@ def hb():
             data={"type": type},
             ip=request.remote_addr,
         )
-    metrics.pool_worker_heartbeats.inc()
+    metrics.worker_heartbeats_total.inc()
+
     return jsonify({"status": "ok"})
 
 
