@@ -19,7 +19,7 @@ def start_pool_consumer(redis_client):
     def on_message(ch, method, properties, body):
 
         block = json.loads(body)
-        metrics.pool_blocks_received.inc()
+        metrics.blocks_received_total.inc()
         alive, _ = get_alive_workers(redis_client)
 
         ok = dispatch_to_workers(block, alive, channel)
