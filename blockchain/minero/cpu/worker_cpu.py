@@ -9,7 +9,6 @@ import logging
 
 import pika
 import config.settings as settings
-import metrics
 
 # -----------------------
 # Logging
@@ -115,7 +114,6 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
 
     for nonce in range(from_val, to_val + 1):
         intentos += 1
-        metrics.hashes_total.labels(worker_type="cpu").inc()
         nonce_str = str(nonce)
 
         hash_calculado = calculateHash(nonce_str + hash_base)
@@ -123,9 +121,6 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
         if hash_calculado.startswith(prefijo):
             processing_time = time.time() - start_time
             hash_rate = intentos / processing_time if processing_time > 0 else 0.0
-
-            metrics.blocks_solved_total.labels(worker_type="cpu").inc()
-            metrics.hash_rate_gauge.labels(worker_type="cpu").set(hash_rate)
 
             return {
                 "encontrado": True,
@@ -138,7 +133,6 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
 
     # No encontrado
     processing_time = time.time() - start_time
-    metrics.hash_rate_gauge.labels(worker_type="cpu").set(0.0)
 
     return {
         "encontrado": False,
@@ -226,6 +220,7 @@ def on_message_received(channel, method, _, body):
             dataResult = {
                 "blockId": block_id,
                 "workerId": WORKER_ID,
+                "type": "cpu",
                 "processingTime": resultado["processingTime"],
                 "hashRate": resultado["hashRate"],
                 "hash": resultado["hash_md5_result"],
@@ -259,6 +254,7 @@ def on_message_received(channel, method, _, body):
             dataResult = {
                 "blockId": block_id,
                 "workerId": WORKER_ID,
+                "type": "cpu",
                 "processingTime": resultado["processingTime"],
                 "hashRate": 0.0,
                 "hash": "",
@@ -267,8 +263,6 @@ def on_message_received(channel, method, _, body):
             enviar_resultado(dataResult)
 
     except Exception:
-        metrics.worker_errors_total.labels(worker_type="cpu").inc()
-
         logger.exception("[%s] Error procesando mensaje", WORKER_ID)
 
     finally:
@@ -276,7 +270,6 @@ def on_message_received(channel, method, _, body):
             if ack:
                 channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception:
-            metrics.worker_errors_total.labels(worker_type="cpu").inc()
             logger.exception("[%s] Error al ackear el mensaje", WORKER_ID)
 
         logger.debug("[%s] Esperando bloques...", WORKER_ID)
@@ -314,8 +307,6 @@ def heartbeat_loop():
 # Main
 # -----------------------
 def main():
-    metrics.start_metrics_server(9100)
-    metrics.worker_active.labels(worker_type="cpu").set(1)
 
     connection = connect_rabbit()
     channel = connection.channel()
@@ -373,7 +364,6 @@ def main():
         channel.start_consuming()
     except KeyboardInterrupt:
         logger.info("[%s] Worker detenido por usuario", WORKER_ID)
-        metrics.worker_active.labels(worker_type="cpu").set(0)
 
         try:
             connection.close()

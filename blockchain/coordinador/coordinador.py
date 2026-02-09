@@ -5,51 +5,18 @@ import sys
 import time
 import uuid
 import logging
-
 from flask import Flask, jsonify, request
 import pika
 import redis
 from google.cloud import storage
-from prometheus_client import (
-    Counter,
-    Gauge,
-    Histogram,
-    start_http_server,
-)
+from prometheus_client import start_http_server
+import metrics
 import config.settings as settings
 from google.api_core.exceptions import NotFound
 
 start_http_server(8000)
 
 app = Flask(__name__)
-
-# -----------------------
-# Prometheus metrics
-# -----------------------
-start_time = time.time()
-
-transactions_total = Counter(
-    "coordinator_transactions_total", "Total de transacciones recibidas"
-)
-
-blocks_created_total = Counter(
-    "coordinator_blocks_created_total", "Total de bloques creados"
-)
-
-blocks_accepted_total = Counter(
-    "coordinator_blocks_accepted_total", "Total de bloques aceptados"
-)
-
-blocks_rejected_total = Counter(
-    "coordinator_blocks_rejected_total", "Total de bloques rechazados"
-)
-
-errors_total = Counter("coordinator_errors_total", "Errores internos del coordinador")
-
-gpus_alive_gauge = Gauge("coordinator_gpus_alive", "Cantidad de workers GPU vivos")
-
-uptime_gauge = Gauge("coordinator_uptime_seconds", "Uptime del coordinador en segundos")
-
 
 # -----------------------
 # Logging
@@ -191,12 +158,12 @@ def postBlock(block):
     pipe.lpush("blockchain", json.dumps(block))
     pipe.sadd("block_ids", block["blockId"])
     pipe.execute()
-    
+
+
 def release_claim(claim_key, worker_id):
     owner = redisClient.get(claim_key)
     if owner and owner.decode() == worker_id:
         redisClient.delete(claim_key)
-
 
 
 def gpus_vivas():
@@ -254,9 +221,8 @@ def borrarBlock(bucket, blockId):
         blob.delete()
         logging.info(f"Bloque {blockId} eliminado del bucket")
     except NotFound:
-        logging.warning(
-            f"Bloque {blockId} no se encontró en el bucket"
-        )
+        logging.warning(f"Bloque {blockId} no se encontró en el bucket")
+
 
 # -----------------------
 # HTTP endpoints
@@ -266,8 +232,8 @@ def addTransaction():
     tx = request.json
     if not validarTransaction(tx):
         return "Transacción inválida", 400
-    
-    transactions_total.inc()
+
+    metrics.transactions_total.inc()
     encolar(tx)
     return "Transacción aceptada", 202
 
@@ -285,6 +251,7 @@ def receive_solved_task():
 
     block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")
+    worker_type = data.get("type", "cpu")
 
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
@@ -299,14 +266,23 @@ def receive_solved_task():
             worker_id,
             block_id,
         )
-        blocks_rejected_total.inc()
+        metrics.record_task_result(
+            worker_type=worker_type,
+            accepted=False,
+        )
+        metrics.blocks_rejected_total.inc()
+
         return jsonify({"message": "Bloque ya cerrado"}), 202
 
     # -----------------------
     # 2) Claim exclusivo (competencia)
     # -----------------------
     if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
-        blocks_rejected_total.inc()
+        metrics.blocks_rejected_total.inc()
+        metrics.record_task_result(
+            worker_type=worker_type,
+            accepted=False,
+        )
         return jsonify({"message": "Bloque ya reclamado"}), 202
 
     try:
@@ -317,7 +293,11 @@ def receive_solved_task():
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            blocks_rejected_total.inc()
+            metrics.blocks_rejected_total.inc()
+            metrics.record_task_result(
+                worker_type=worker_type,
+                accepted=False,
+            )
             return jsonify({"message": "Bloque ya cerrado"}), 202
 
         # -----------------------
@@ -328,7 +308,11 @@ def receive_solved_task():
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
-            blocks_rejected_total.inc()
+            metrics.blocks_rejected_total.inc()
+            metrics.record_task_result(
+                worker_type=worker_type,
+                accepted=False,
+            )
             return jsonify({"message": "Hash inválido"}), 202
 
         # -----------------------
@@ -337,7 +321,11 @@ def receive_solved_task():
         if existBlock(block_id):
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            blocks_rejected_total.inc()
+            metrics.blocks_rejected_total.inc()
+            metrics.record_task_result(
+                worker_type=worker_type,
+                accepted=False,
+            )
             return jsonify({"message": "Bloque ya existe"}), 202
 
         # -----------------------
@@ -373,7 +361,13 @@ def receive_solved_task():
             block_id,
             worker_id,
         )
-        blocks_accepted_total.inc()
+        metrics.blocks_accepted_total.inc()
+        metrics.record_task_result(
+            worker_type=worker_type,
+            accepted=True,
+            processing_time=data.get("processingTime"),
+            hash_rate=data.get("hashRate"),
+        )
 
         return jsonify({"message": "Bloque aceptado"}), 201
 
@@ -384,7 +378,7 @@ def receive_solved_task():
             worker_id,
             block_id,
         )
-        errors_total.inc()
+        metrics.errors_total.inc()
         return jsonify({"message": "Error interno"}), 500
 
 
@@ -394,8 +388,8 @@ def receive_solved_task():
 def processPackages():
     while True:
         txs = []
-        gpus_alive_gauge.set(gpus_vivas())
-        uptime_gauge.set(time.time() - start_time)
+        metrics.gpus_alive.set(gpus_vivas())
+        metrics.update_uptime()
 
         for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
             method_frame, _, body = channel.basic_get(queue="QueueTransactions")
@@ -406,7 +400,7 @@ def processPackages():
 
         if txs:
             blockId = str(uuid.uuid4())
-            blocks_created_total.inc()
+            metrics.blocks_created_total.inc()
             last = getUltimoBlock()
 
             requested_difficulties = [
