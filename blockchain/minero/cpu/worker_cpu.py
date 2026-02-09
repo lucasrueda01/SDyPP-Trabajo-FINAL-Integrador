@@ -290,15 +290,13 @@ def register():
 
 
 def heartbeat_loop():
-    global registered
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
         try:
-            resp = requests.post(url, json={"id": WORKER_ID, "type": "cpu"}, timeout=3)
-            if resp.status_code == 404 and not registered:
+            resp = requests.post(url, json={"id": WORKER_ID, "type": "cpu"}, timeout=10)
+            if resp.status_code == 404:
                 logger.warning("[%s] Perdí registro, re-registrando", WORKER_ID)
                 register()
-                registered = True
 
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
