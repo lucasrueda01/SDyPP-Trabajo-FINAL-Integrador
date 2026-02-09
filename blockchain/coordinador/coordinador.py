@@ -207,7 +207,7 @@ def subirBlock(bucket, block):
 def descargarBlock(bucket, blockId):
     blob = bucket.blob(f"block_{blockId}.json")
     try:
-        return blob.download_as_text()
+        return json.loads(blob.download_as_text())
     except NotFound:
         logging.warning(
             f"Bloque {blockId} no existe al intentar leerlo (posible doble resolución)"
