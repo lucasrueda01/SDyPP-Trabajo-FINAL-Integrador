@@ -29,7 +29,7 @@ data:
   BASE_STRING_CHAIN: "A3F8"
   MAX_RANDOM: "99999999"
 
-  COOPERATIVE_MINING: "False"
+  COOPERATIVE_MINING: "True"
 
   DEBUG: "True"
   TZ: "America/Argentina/Buenos_Aires"
