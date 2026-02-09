@@ -191,6 +191,12 @@ def postBlock(block):
     pipe.lpush("blockchain", json.dumps(block))
     pipe.sadd("block_ids", block["blockId"])
     pipe.execute()
+    
+def release_claim(claim_key, worker_id):
+    owner = redisClient.get(claim_key)
+    if owner and owner.decode() == worker_id:
+        redisClient.delete(claim_key)
+
 
 
 def gpus_vivas():
@@ -233,7 +239,13 @@ def subirBlock(bucket, block):
 
 def descargarBlock(bucket, blockId):
     blob = bucket.blob(f"block_{blockId}.json")
-    return json.loads(blob.download_as_text())
+    try:
+        return blob.download_as_text()
+    except NotFound:
+        logging.warning(
+            f"Bloque {blockId} no existe al intentar leerlo (posible doble resolución)"
+        )
+        return None
 
 
 def borrarBlock(bucket, blockId):
@@ -281,7 +293,7 @@ def receive_solved_task():
     # 1) Idempotencia fuerte
     # -----------------------
     status = redisClient.get(status_key)
-    if status == b"SEALED":
+    if status and status.decode() == "SEALED":
         logger.info(
             "Resultado tardío descartado de %s para bloque %s",
             worker_id,
@@ -302,9 +314,9 @@ def receive_solved_task():
         # 3) Descargar bloque
         # -----------------------
         block = descargarBlock(bucket, block_id)
-        if not block:
+        if block is None:
             redisClient.set(status_key, "SEALED")
-            redisClient.delete(claim_key)
+            release_claim(claim_key, worker_id)
             blocks_rejected_total.inc()
             return jsonify({"message": "Bloque ya cerrado"}), 202
 
@@ -315,7 +327,7 @@ def receive_solved_task():
         hash_calc = calculateHash(data["result"] + hash_base)
 
         if hash_calc != data["hash"]:
-            redisClient.delete(claim_key)
+            release_claim(claim_key, worker_id)
             blocks_rejected_total.inc()
             return jsonify({"message": "Hash inválido"}), 202
 
@@ -324,7 +336,7 @@ def receive_solved_task():
         # -----------------------
         if existBlock(block_id):
             redisClient.set(status_key, "SEALED")
-            redisClient.delete(claim_key)
+            release_claim(claim_key, worker_id)
             blocks_rejected_total.inc()
             return jsonify({"message": "Bloque ya existe"}), 202
 
@@ -366,7 +378,7 @@ def receive_solved_task():
         return jsonify({"message": "Bloque aceptado"}), 201
 
     except Exception:
-        redisClient.delete(claim_key)
+        release_claim(claim_key, worker_id)
         logger.exception(
             "Error procesando resultado del worker %s para bloque %s",
             worker_id,
