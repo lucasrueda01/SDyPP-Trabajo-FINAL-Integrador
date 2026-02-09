@@ -44,7 +44,6 @@ def hb():
     metrics.update_uptime()
     data = request.get_json()
     wid = data["id"]
-    type = data.get("type", "unknown")
 
     ok = heartbeat(redis_client, wid)
 
@@ -53,12 +52,7 @@ def hb():
             "Heartbeat de %s sin registro previo, recreando estado",
             wid,
         )
-        register_worker(
-            redis_client,
-            wid,
-            data={"type": type},
-            ip=request.remote_addr,
-        )
+        return jsonify({"error": "worker not registered"}), 404
     metrics.worker_heartbeats_total.inc()
 
     return jsonify({"status": "ok"})

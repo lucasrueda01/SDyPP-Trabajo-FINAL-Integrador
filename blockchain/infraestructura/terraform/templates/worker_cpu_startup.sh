@@ -19,7 +19,7 @@ export POOL_MANAGER_HOST="136.113.41.39"
 export POOL_MANAGER_PORT="6000"
 
 export CPU_CAPACITY="10"
-export HEARTBEAT_TTL="10"
+export HEARTBEAT_TTL="90"
 export TZ="America/Argentina/Buenos_Aires"
 
 # -----------------------------

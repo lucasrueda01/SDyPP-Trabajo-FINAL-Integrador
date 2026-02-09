@@ -17,7 +17,7 @@ LOG_LEVEL = logging.DEBUG if getattr(settings, "DEBUG", False) else logging.INFO
 
 logging.basicConfig(
     level=LOG_LEVEL,
-    format="[%(levelname)s] %(message)s",
+    format="[%(asctime)s] [%(threadName)s] [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
@@ -290,17 +290,19 @@ def register():
 
 
 def heartbeat_loop():
+    global registered
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
     while True:
         try:
             resp = requests.post(url, json={"id": WORKER_ID, "type": "cpu"}, timeout=3)
-            if resp.status_code == 404:
-                logger.debug("[%s] Solicitando re-registro", WORKER_ID)
+            if resp.status_code == 404 and not registered:
+                logger.warning("[%s] Perdí registro, re-registrando", WORKER_ID)
                 register()
+                registered = True
 
         except Exception:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
-        time.sleep(settings.HEARTBEAT_TTL // 2)
+        time.sleep(settings.HEARTBEAT_TTL // 3)
 
 
 # -----------------------
