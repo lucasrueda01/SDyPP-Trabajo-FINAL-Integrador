@@ -17,6 +17,7 @@ from prometheus_client import (
     start_http_server,
 )
 import config.settings as settings
+from google.api_core.exceptions import NotFound
 
 start_http_server(8000)
 
@@ -236,9 +237,14 @@ def descargarBlock(bucket, blockId):
 
 
 def borrarBlock(bucket, blockId):
-    bucket.blob(f"block_{blockId}.json").delete()
-    logger.info("Bloque %s eliminado del bucket", blockId)
-
+    blob = bucket.blob(f"block_{blockId}.json")
+    try:
+        blob.delete()
+        logging.info(f"Bloque {blockId} eliminado del bucket")
+    except NotFound:
+        logging.warning(
+            f"Bloque {blockId} no se encontró en el bucket"
+        )
 
 # -----------------------
 # HTTP endpoints
