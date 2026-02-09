@@ -35,7 +35,7 @@ def register():
     data = request.get_json()
     wid = data["id"]
     register_worker(redis_client, wid, data, request.remote_addr)
-    metrics.pool_worker_registrations.inc()
+    metrics.worker_registrations_total.inc()
     return jsonify({"status": "ok"})
 
 
