@@ -5,7 +5,7 @@ metadata:
   namespace: blockchain-infra
 
 spec:
-  replicas: 2
+  replicas: 0
   selector:
     matchLabels:
       app: cpu-scaler
