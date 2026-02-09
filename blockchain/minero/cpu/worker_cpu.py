@@ -1,5 +1,6 @@
 import json
 import hashlib
+from multiprocessing import Process
 import random
 import threading
 import requests
@@ -291,16 +292,27 @@ def register():
 
 def heartbeat_loop():
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
+
     while True:
         try:
-            resp = requests.post(url, json={"id": WORKER_ID, "type": "cpu"}, timeout=10)
+            resp = requests.post(
+                url,
+                json={"id": WORKER_ID, "type": "cpu"},
+                timeout=settings.HEARTBEAT_TIMEOUT,
+            )
+
             if resp.status_code == 404:
                 logger.warning("[%s] Perdí registro, re-registrando", WORKER_ID)
                 register()
 
-        except Exception:
-            logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
-        time.sleep(settings.HEARTBEAT_TTL // 3)
+        except Exception as e:
+            logger.warning(
+                "[%s] No se pudo enviar heartbeat: %s",
+                WORKER_ID,
+                e,
+            )
+
+        time.sleep(settings.HEARTBEAT_INTERVAL)
 
 
 # -----------------------
@@ -356,7 +368,14 @@ def main():
     )
     register()
 
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
+    # Iniciamos heartbeat en proceso separado para no bloquear el consumo de mensajes
+    hb_process = Process(
+        target=heartbeat_loop,
+        daemon=True,
+        name="heartbeat-process",
+    )
+    hb_process.start()
+    logger.info("[%s] Heartbeat process iniciado (pid=%s)", WORKER_ID, hb_process.pid)
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
 

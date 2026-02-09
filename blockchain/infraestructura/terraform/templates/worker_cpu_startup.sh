@@ -19,7 +19,9 @@ export POOL_MANAGER_HOST="136.113.41.39"
 export POOL_MANAGER_PORT="6000"
 
 export CPU_CAPACITY="10"
-export HEARTBEAT_TTL="90"
+export HEARTBEAT_TTL="120"
+export HEARTBEAT_INTERVAL="25"
+export HEARTBEAT_TIMEOUT="8"
 export TZ="America/Argentina/Buenos_Aires"
 
 # -----------------------------
@@ -48,6 +50,8 @@ docker run -d \
   -e POOL_MANAGER_PORT \
   -e CPU_CAPACITY \
   -e HEARTBEAT_TTL \
+  -e HEARTBEAT_INTERVAL \
+  -e HEARTBEAT_TIMEOUT \
   -e TZ \
   ghcr.io/lucasrueda01/worker-cpu:latest
 
