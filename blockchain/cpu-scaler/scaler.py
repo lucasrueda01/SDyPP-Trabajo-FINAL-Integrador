@@ -48,11 +48,16 @@ def redis_connect():
 
 def get_alive_workers(redis_client):
     workers = []
+
     for key in redis_client.scan_iter("worker:*"):
-        raw = redis_client.get(key)
-        if not raw:
+        data = redis_client.hgetall(key)
+        if not data:
             continue
-        workers.append(json.loads(raw))
+
+        data["capacity"] = int(data.get("capacity", 0))
+        data["last_seen"] = float(data.get("last_seen", 0))
+        workers.append(data)
+
     return workers
 
 
@@ -133,7 +138,7 @@ def reconcile(redis_client):
     global last_scale_time
 
     now = time.time()
-    
+
     # Metricas
     metrics.reconciliations_total.inc()
     metrics.worker_info.clear()

@@ -30,29 +30,28 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logger.info("Pool Manager iniciando")
 
 
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.get_json()
-    wid = data["id"]
-    register_worker(redis_client, wid, data, request.remote_addr)
-    metrics.worker_registrations_total.inc()
-    return jsonify({"status": "ok"})
-
-
 @app.route("/heartbeat", methods=["POST"])
-def hb():
+def heartbeat():
     metrics.update_uptime()
+
     data = request.get_json()
     wid = data["id"]
+    wtype = data["type"]
+    capacity = data.get("capacity")
 
-    ok = heartbeat(redis_client, wid)
+    key = f"worker:{wid}"
 
-    if not ok:
-        logger.warning(
-            "Heartbeat de %s sin registro previo, recreando estado",
-            wid,
-        )
-        return jsonify({"error": "worker not registered"}), 404
+    worker_data = {
+        "id": wid,
+        "type": wtype,
+        "capacity": capacity,
+        "ip": request.remote_addr,
+        "last_seen": time.time(),
+    }
+
+    redis_client.hset(key, mapping=worker_data)
+    redis_client.expire(key, settings.HEARTBEAT_TTL)
+
     metrics.worker_heartbeats_total.inc()
 
     return jsonify({"status": "ok"})

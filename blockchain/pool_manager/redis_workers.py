@@ -18,38 +18,6 @@ def redis_connect():
     logger.info("Conectado a Redis")
     return client
 
-
-def register_worker(redis_client, wid, data, ip):
-    worker_data = {
-        "id": wid,
-        "type": data["type"],
-        "capacity": data.get("capacity", 5),
-        "ip": ip,
-    }
-
-    created = redis_client.set(
-        f"worker:{wid}",
-        json.dumps(worker_data),
-        ex=settings.HEARTBEAT_TTL,
-        nx=True,
-    )
-
-    if created:
-        logger.info(
-            "Worker registrado: id=%s type=%s ip=%s",
-            wid,
-            worker_data["type"],
-            ip,
-        )
-    else:
-        logger.debug(
-            "Worker %s ya registrado, no se recrea",
-            wid,
-        )
-
-    return worker_data
-
-
 def heartbeat(redis_client, wid):
     key = f"worker:{wid}"
 

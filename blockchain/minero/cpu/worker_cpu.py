@@ -1,8 +1,7 @@
 import json
 import hashlib
-from multiprocessing import Process, Event
+from multiprocessing import Process
 import random
-import threading
 import requests
 import time
 import sys
@@ -40,7 +39,6 @@ rabbitPassword = settings.RABBIT_PASSWORD
 pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
 
-registered_event = Event()
 
 def calculateHash(data: str) -> str:
     hash_md5 = hashlib.md5()
@@ -273,42 +271,20 @@ def on_message_received(channel, method, _, body):
         logger.debug("[%s] Esperando bloques...", WORKER_ID)
 
 
-def register():
-    url = f"http://{pool_manager_host}:{pool_manager_port}/register"
+def heartbeat_loop():
+    url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
+
     payload = {
         "id": WORKER_ID,
         "type": "cpu",
         "capacity": settings.CPU_CAPACITY,
     }
-    try:
-        requests.post(url, json=payload, timeout=3)
-        logger.info("[%s] Registrado en Pool Manager", WORKER_ID)
-    except Exception:
-        logger.exception("[%s] Error registrando en Pool Manager", WORKER_ID)
-
-
-def heartbeat_loop():
-    registered_event.wait()
-    url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
 
     while True:
         try:
-            resp = requests.post(
-                url,
-                json={"id": WORKER_ID, "type": "cpu"},
-                timeout=settings.HEARTBEAT_TIMEOUT,
-            )
-
-            if resp.status_code == 404:
-                logger.warning("[%s] Perdí registro, re-registrando", WORKER_ID)
-                register()
-
-        except Exception as e:
-            logger.warning(
-                "[%s] No se pudo enviar heartbeat: %s",
-                WORKER_ID,
-                e,
-            )
+            requests.post(url, json=payload, timeout=5)
+        except Exception:
+            logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
 
         time.sleep(settings.HEARTBEAT_INTERVAL)
 
@@ -365,8 +341,7 @@ def main():
         on_message_callback=on_message_received,
         auto_ack=False,
     )
-    register()
-    registered_event.set()
+    
     # Iniciamos heartbeat en proceso separado para no bloquear el consumo de mensajes
     hb_process = Process(
         target=heartbeat_loop,
@@ -374,6 +349,7 @@ def main():
         name="heartbeat-process",
     )
     hb_process.start()
+    
     logger.info("[%s] Heartbeat process iniciado (pid=%s)", WORKER_ID, hb_process.pid)
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)

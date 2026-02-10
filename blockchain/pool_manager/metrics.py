@@ -39,11 +39,6 @@ blocks_dlq_total = Counter(
     "Bloques enviados a DLQ"
 )
 
-worker_registrations_total = Counter(
-    "pool_worker_registrations_total",
-    "Workers registrados en el pool"
-)
-
 worker_heartbeats_total = Counter(
     "pool_worker_heartbeats_total",
     "Heartbeats recibidos de workers"
