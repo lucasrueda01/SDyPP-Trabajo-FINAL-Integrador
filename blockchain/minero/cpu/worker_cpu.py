@@ -27,8 +27,6 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
-
 EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
 EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
 QUEUE_COOPERATIVE = "blocks_queue"
@@ -41,8 +39,6 @@ rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
 pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
-
-WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
 
 
 def calculateHash(data: str) -> str:
@@ -319,7 +315,8 @@ def heartbeat_loop():
 # Main
 # -----------------------
 def main():
-
+    global WORKER_ID
+    WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
     connection = connect_rabbit()
     channel = connection.channel()
     channel.basic_qos(prefetch_count=1)
