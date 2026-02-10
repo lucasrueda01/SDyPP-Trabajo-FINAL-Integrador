@@ -18,17 +18,22 @@ def redis_connect():
     logger.info("Conectado a Redis")
     return client
 
+
 def get_alive_workers(redis_client):
     alive = []
     total_capacity = 0
 
     for key in redis_client.scan_iter("worker:*"):
-        raw = redis_client.get(key)
-        if not raw:
+        w = redis_client.hgetall(key)
+        if not w:
             continue
 
-        w = json.loads(raw)
+        # normalizar tipos
+        w["capacity"] = int(w.get("capacity", 0))
+        if "last_seen" in w:
+            w["last_seen"] = float(w["last_seen"])
+
         alive.append(w)
-        total_capacity += int(w["capacity"])
+        total_capacity += w["capacity"]
 
     return alive, total_capacity
