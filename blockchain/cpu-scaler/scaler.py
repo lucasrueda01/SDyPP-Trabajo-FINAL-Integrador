@@ -141,8 +141,8 @@ def reconcile(redis_client):
 
     alive = get_alive_workers(redis_client)
 
-    cpu_count = 0
-    gpu_count = 0
+    cpu_alive = 0
+    gpu_alive = 0
 
     for w in alive:
         wid = w.get("id", "unknown")
@@ -171,8 +171,8 @@ def reconcile(redis_client):
             ).set(now - last)
 
     # ---- métricas agregadas ----
-    metrics.total_workers_cpu.set(cpu_count)
-    metrics.total_workers_gpu.set(gpu_count)
+    metrics.total_workers_cpu.set(cpu_alive)
+    metrics.total_workers_gpu.set(gpu_alive)
     metrics.total_workers.set(len(alive))
 
     # --- lógica de escalado ----
