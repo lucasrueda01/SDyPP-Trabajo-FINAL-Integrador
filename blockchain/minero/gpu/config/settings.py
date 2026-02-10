@@ -33,5 +33,5 @@ DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 POOL_MANAGER_HOST = os.getenv("POOL_MANAGER_HOST", "localhost")
 POOL_MANAGER_PORT = int(os.getenv("POOL_MANAGER_PORT", 6000))
 GPU_CAPACITY = int(os.getenv("GPU_CAPACITY", 100))
-HEARTBEAT_TTL = int(os.getenv("HEARTBEAT_TTL", 30))
+HEARTBEAT_TTL = int(os.getenv("HEARTBEAT_TTL", 180))
 
