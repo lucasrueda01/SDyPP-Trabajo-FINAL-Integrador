@@ -342,7 +342,7 @@ def main():
         on_message_callback=on_message_received,
         auto_ack=False,
     )
-    
+
     # Iniciamos heartbeat en hilo separado para no bloquear el consumo de mensajes
     hb_thread = Thread(
         target=heartbeat_loop,
@@ -350,7 +350,7 @@ def main():
         name="heartbeat-thread",
     )
     hb_thread.start()
-    
+
     logger.info("[%s] Heartbeat thread iniciado (name=%s)", WORKER_ID, hb_thread.name)
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)

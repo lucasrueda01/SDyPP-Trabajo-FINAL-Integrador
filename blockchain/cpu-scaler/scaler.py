@@ -20,6 +20,7 @@ CPU_IMAGE = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
 CPU_DISK_SIZE_GB = 50
 CPU_NETWORK = "global/networks/default"
 
+
 DEPLOYMENT_NAME = "blockchain"
 CPU_TAGS = ["worker-cpu"]
 
@@ -33,6 +34,9 @@ logger = logging.getLogger("cpu-scaler")
 
 last_scale_time = 0
 last_seen_cache = {}
+# ---- hysteresis ----
+cpu_below_expected_counter = 0
+CPU_CONFIRM_CYCLES = 3  # cantidad de ciclos consecutivos
 
 
 # ---------- Redis ----------
@@ -140,10 +144,11 @@ def delete_cpu_worker(instance_name):
 
 def reconcile(redis_client):
     global last_scale_time
+    global cpu_below_expected_counter
 
     now = time.time()
 
-    # Metricas
+    # ---- métricas base ----
     metrics.reconciliations_total.inc()
     metrics.worker_info.clear()
 
@@ -173,23 +178,21 @@ def reconcile(redis_client):
             metrics.worker_heartbeat_interval_seconds.labels(id=wid, type=wtype).set(
                 delta
             )
-
         last_seen_cache[wid] = last_seen
 
-        # 3️⃣ Cerca de expirar (ej: >70% del TTL)
+        # 3️⃣ Cerca de expirar
         if age > settings.HEARTBEAT_TTL * 0.7:
             if wtype == "cpu":
                 near_expiry_cpu += 1
             elif wtype == "gpu":
                 near_expiry_gpu += 1
 
-        # ---- conteo por tipo ----
+        # Conteo
         if wtype == "cpu":
             cpu_alive += 1
         elif wtype == "gpu":
             gpu_alive += 1
 
-        # ---- info del worker (tabla) ----
         metrics.worker_info.labels(
             id=wid,
             type=wtype,
@@ -204,48 +207,75 @@ def reconcile(redis_client):
     metrics.workers_near_expiry.labels(type="cpu").set(near_expiry_cpu)
     metrics.workers_near_expiry.labels(type="gpu").set(near_expiry_gpu)
 
-    # --- lógica de escalado ----
+    # ---- cooldown global ----
     if now - last_scale_time < settings.SCALE_COOLDOWN:
         return
 
+    # ---- cálculo de demanda ----
     missing_gpus = max(settings.EXPECTED_GPUS - gpu_alive, 0)
     metrics.gpus_missing.set(missing_gpus)
 
     if missing_gpus > 0:
         target_cpu = settings.BASE_CPU_REPLICAS + (missing_gpus * settings.CPUS_PER_GPU)
         target_cpu = min(target_cpu, MAX_CPU_WORKERS)
-        metrics.target_cpu_workers.set(target_cpu)
+    else:
+        target_cpu = settings.BASE_CPU_REPLICAS
 
-        dynamic_instances = list_dynamic_cpu_instances()
-        metrics.dynamic_cpu_workers.set(len(dynamic_instances))
+    metrics.target_cpu_workers.set(target_cpu)
 
-        effective_cpu = settings.BASE_CPU_REPLICAS + len(dynamic_instances)
+    # ---- estado actual real ----
+    dynamic_instances = list_dynamic_cpu_instances()
+    metrics.dynamic_cpu_workers.set(len(dynamic_instances))
 
+    effective_cpu = settings.BASE_CPU_REPLICAS + len(dynamic_instances)
+
+    # ---- hysteresis correcto ----
+    if effective_cpu < target_cpu:
+        cpu_below_expected_counter += 1
+        logger.info(
+            "CPU efectiva baja (%d < %d). Confirmación %d/%d",
+            effective_cpu,
+            target_cpu,
+            cpu_below_expected_counter,
+            CPU_CONFIRM_CYCLES,
+        )
+    else:
+        cpu_below_expected_counter = 0
+
+    # ---- no escalar por estados transitorios ----
+    if cpu_below_expected_counter < CPU_CONFIRM_CYCLES:
+        logger.info(
+            "Faltante de CPU no confirmado (%d/%d). No se escala.",
+            cpu_below_expected_counter,
+            CPU_CONFIRM_CYCLES,
+        )
+        return
+
+    # ---- scale up / down real ----
+    if effective_cpu < target_cpu:
         to_create = target_cpu - effective_cpu
 
-        if to_create > 0:
-            logger.warning(
-                "Faltan GPUs (%d). Creando %d workers CPU dinámicos",
-                missing_gpus,
-                to_create,
-            )
-            metrics.scale_up_total.inc()
-            for _ in range(to_create):
-                create_cpu_worker()
-                metrics.vm_created_total.inc()
+        logger.warning(
+            "Escalando CPU: creando %d workers (actual=%d, target=%d)",
+            to_create,
+            effective_cpu,
+            target_cpu,
+        )
 
-    else:
-        # GPU volvió → eliminar TODOS los CPUs dinámicos
-        dynamic_instances = list_dynamic_cpu_instances()
+        metrics.scale_up_total.inc()
+        for _ in range(to_create):
+            create_cpu_worker()
+            metrics.vm_created_total.inc()
 
-        if dynamic_instances:
-            logger.warning(
-                "GPU disponible. Eliminando %d workers CPU dinámicos",
-                len(dynamic_instances),
-            )
-            for name in dynamic_instances:
-                delete_cpu_worker(name)
-                metrics.vm_deleted_total.inc()
+    elif missing_gpus == 0 and dynamic_instances:
+        logger.warning(
+            "GPU disponible. Eliminando %d workers CPU dinámicos",
+            len(dynamic_instances),
+        )
+
+        for name in dynamic_instances:
+            delete_cpu_worker(name)
+            metrics.vm_deleted_total.inc()
 
     last_scale_time = now
 
