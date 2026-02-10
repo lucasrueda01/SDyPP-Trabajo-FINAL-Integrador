@@ -1,6 +1,6 @@
 import json
 import hashlib
-from multiprocessing import Process
+from multiprocessing import Process, Event
 import random
 import threading
 import requests
@@ -40,6 +40,7 @@ rabbitPassword = settings.RABBIT_PASSWORD
 pool_manager_host = settings.POOL_MANAGER_HOST
 pool_manager_port = settings.POOL_MANAGER_PORT
 
+registered_event = Event()
 
 def calculateHash(data: str) -> str:
     hash_md5 = hashlib.md5()
@@ -287,6 +288,7 @@ def register():
 
 
 def heartbeat_loop():
+    registered_event.wait()
     url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
 
     while True:
@@ -364,7 +366,7 @@ def main():
         auto_ack=False,
     )
     register()
-
+    registered_event.set()
     # Iniciamos heartbeat en proceso separado para no bloquear el consumo de mensajes
     hb_process = Process(
         target=heartbeat_loop,
