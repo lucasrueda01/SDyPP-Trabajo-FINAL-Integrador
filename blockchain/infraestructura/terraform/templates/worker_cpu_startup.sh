@@ -20,7 +20,7 @@ export POOL_MANAGER_PORT="6000"
 
 export CPU_CAPACITY="10"
 export HEARTBEAT_TTL="180"
-export HEARTBEAT_INTERVAL="25"
+export HEARTBEAT_INTERVAL="10"
 export HEARTBEAT_TIMEOUT="8"
 export TZ="America/Argentina/Buenos_Aires"
 
