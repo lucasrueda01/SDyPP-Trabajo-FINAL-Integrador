@@ -129,19 +129,53 @@ def delete_cpu_worker(instance_name):
     logger.warning("Worker CPU dinámico eliminado: %s", instance_name)
 
 
-# ---------- Lógica de escalado ----------
 def reconcile(redis_client):
     global last_scale_time
-    metrics.reconciliations_total.inc()
-    alive = get_alive_workers(redis_client)
-    cpu_alive = [w for w in alive if w.get("type") == "cpu"]
-    gpu_alive = [w for w in alive if w.get("type") == "gpu"]
-
-    metrics.total_workers_cpu.set(len(cpu_alive))
-    metrics.total_workers_gpu.set(len(gpu_alive))
-    metrics.total_workers.set(len(alive))
 
     now = time.time()
+    
+    # Metricas
+    metrics.reconciliations_total.inc()
+    metrics.worker_info.clear()
+    metrics.worker_heartbeat_age_seconds.clear()
+
+    alive = get_alive_workers(redis_client)
+
+    cpu_count = 0
+    gpu_count = 0
+
+    for w in alive:
+        wid = w.get("id", "unknown")
+        wtype = w.get("type", "unknown")
+
+        # ---- conteo por tipo ----
+        if wtype == "cpu":
+            cpu_alive += 1
+        elif wtype == "gpu":
+            gpu_alive += 1
+
+        # ---- info del worker (tabla) ----
+        metrics.worker_info.labels(
+            id=wid,
+            type=wtype,
+            ip=w.get("ip", "unknown"),
+            capacity=str(w.get("capacity", "")),
+        ).set(1)
+
+        # ---- edad del heartbeat ----
+        last = w.get("last_heartbeat")
+        if last is not None:
+            metrics.worker_heartbeat_age_seconds.labels(
+                id=wid,
+                type=wtype,
+            ).set(now - last)
+
+    # ---- métricas agregadas ----
+    metrics.total_workers_cpu.set(cpu_count)
+    metrics.total_workers_gpu.set(gpu_count)
+    metrics.total_workers.set(len(alive))
+
+    # --- lógica de escalado ----
     if now - last_scale_time < settings.SCALE_COOLDOWN:
         return
 

@@ -79,5 +79,18 @@ total_workers = Gauge(
     "Cantidad total de workers vivos"
 )
 
+worker_info = Gauge(
+    "worker_info",
+    "Informacion de workers vivos segun Redis",
+    ["id", "type", "ip", "capacity"],
+)
+
+worker_heartbeat_age_seconds = Gauge(
+    "worker_heartbeat_age_seconds",
+    "Segundos desde el ultimo heartbeat del worker",
+    ["id", "type"],
+)
+
+
 def update_uptime():
     uptime_seconds.set(time.time() - _start_time)

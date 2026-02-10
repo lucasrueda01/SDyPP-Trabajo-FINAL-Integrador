@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 import redis
 import config.settings as settings
 
@@ -30,7 +31,7 @@ def register_worker(redis_client, wid, data, ip):
         f"worker:{wid}",
         json.dumps(worker_data),
         ex=settings.HEARTBEAT_TTL,
-        nx=True,  # 👈 clave para evitar flapping
+        nx=True,
     )
 
     if created:
@@ -51,15 +52,24 @@ def register_worker(redis_client, wid, data, ip):
 
 def heartbeat(redis_client, wid):
     key = f"worker:{wid}"
-
-    if not redis_client.exists(key):
+    raw = redis_client.get(key)
+    if not raw:
         logger.warning("Heartbeat recibido de worker no registrado: %s", wid)
         return False
-    
-    logger.debug("Heartbeat recibido de worker %s, renovando TTL", wid)
-    redis_client.expire(key, settings.HEARTBEAT_TTL)
-    return True
+    data = json.loads(raw)
 
+    data["last_heartbeat"] = time.time()
+    redis_client.set(
+        key,
+        json.dumps(data),
+        ex=settings.HEARTBEAT_TTL,
+    )
+
+    logger.debug(
+        "Heartbeat recibido de worker %s, TTL renovado y last_heartbeat actualizado",
+        wid,
+    )
+    return True
 
 
 def get_alive_workers(redis_client):
