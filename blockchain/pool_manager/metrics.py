@@ -52,20 +52,6 @@ worker_heartbeats_total = Counter(
 # =====================
 # Gauges (estado)
 # =====================
-workers_alive = Gauge(
-    "pool_workers_alive",
-    "Cantidad total de workers vivos"
-)
-
-workers_cpu = Gauge(
-    "pool_workers_cpu",
-    "Cantidad de workers CPU vivos"
-)
-
-workers_gpu = Gauge(
-    "pool_workers_gpu",
-    "Cantidad de workers GPU vivos"
-)
 
 uptime_seconds = Gauge(
     "pool_uptime_seconds",

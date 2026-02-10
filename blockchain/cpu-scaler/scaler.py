@@ -131,15 +131,19 @@ def delete_cpu_worker(instance_name):
 
 # ---------- Lógica de escalado ----------
 def reconcile(redis_client):
-    metrics.reconciliations_total.inc()
     global last_scale_time
+    metrics.reconciliations_total.inc()
+    alive = get_alive_workers(redis_client)
+    cpu_alive = [w for w in alive if w.get("type") == "cpu"]
+    gpu_alive = [w for w in alive if w.get("type") == "gpu"]
+
+    metrics.total_workers_cpu.set(len(cpu_alive))
+    metrics.total_workers_gpu.set(len(gpu_alive))
+    metrics.total_workers.set(len(alive))
 
     now = time.time()
     if now - last_scale_time < settings.SCALE_COOLDOWN:
         return
-
-    alive = get_alive_workers(redis_client)
-    gpu_alive = [w for w in alive if w.get("type") == "gpu"]
 
     missing_gpus = max(settings.EXPECTED_GPUS - len(gpu_alive), 0)
     metrics.gpus_missing.set(missing_gpus)
@@ -148,7 +152,6 @@ def reconcile(redis_client):
         target_cpu = settings.BASE_CPU_REPLICAS + (missing_gpus * settings.CPUS_PER_GPU)
         target_cpu = min(target_cpu, MAX_CPU_WORKERS)
         metrics.target_cpu_workers.set(target_cpu)
-
 
         dynamic_instances = list_dynamic_cpu_instances()
         metrics.dynamic_cpu_workers.set(len(dynamic_instances))

@@ -12,9 +12,6 @@ def dispatch_to_workers(block, alive_workers, channel):
     block_id = block["blockId"]
     gpu_workers = [w for w in alive_workers if w["type"] == "gpu"]
     cpu_workers = [w for w in alive_workers if w["type"] == "cpu"]
-    metrics.workers_alive.set(len(alive_workers))
-    metrics.workers_cpu.set(len(cpu_workers))
-    metrics.workers_gpu.set(len(gpu_workers))
     
     if not alive_workers:
         logger.warning("No hay workers vivos para %s", block_id)

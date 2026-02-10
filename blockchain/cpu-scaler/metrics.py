@@ -64,5 +64,20 @@ uptime_seconds = Gauge(
     "Uptime del pool manager en segundos"
 )
 
+total_workers_cpu = Gauge(
+    "workers_cpu_total",
+    "Cantidad total de workers CPU vivos"
+)
+
+total_workers_gpu = Gauge(
+    "workers_gpu_total",
+    "Cantidad total de workers GPU vivos"
+)
+
+total_workers = Gauge(
+    "workers_total",
+    "Cantidad total de workers vivos"
+)
+
 def update_uptime():
     uptime_seconds.set(time.time() - _start_time)
