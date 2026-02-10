@@ -179,7 +179,7 @@ def reconcile(redis_client):
     if now - last_scale_time < settings.SCALE_COOLDOWN:
         return
 
-    missing_gpus = max(settings.EXPECTED_GPUS - len(gpu_alive), 0)
+    missing_gpus = max(settings.EXPECTED_GPUS - gpu_alive, 0)
     metrics.gpus_missing.set(missing_gpus)
 
     if missing_gpus > 0:
