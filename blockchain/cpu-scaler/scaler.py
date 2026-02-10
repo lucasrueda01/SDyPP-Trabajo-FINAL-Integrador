@@ -47,18 +47,22 @@ def redis_connect():
 
 
 def get_alive_workers(redis_client):
-    workers = []
-
+    alive = []
     for key in redis_client.scan_iter("worker:*"):
         data = redis_client.hgetall(key)
         if not data:
             continue
 
-        data["capacity"] = int(data.get("capacity", 0))
-        data["last_seen"] = float(data.get("last_seen", 0))
-        workers.append(data)
+        # Normalizar tipos
+        if "capacity" in data:
+            data["capacity"] = int(data["capacity"])
+        if "last_seen" in data:
+            data["last_seen"] = float(data["last_seen"])
 
-    return workers
+        alive.append(data)
+
+    return alive
+
 
 
 # ---------- GCP ----------
