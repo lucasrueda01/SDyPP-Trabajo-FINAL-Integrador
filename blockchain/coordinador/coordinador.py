@@ -167,25 +167,13 @@ def release_claim(claim_key, worker_id):
 
 
 def gpus_vivas():
-    """
-    Cuenta cuántos workers GPU están vivos.
-    Un worker está vivo si existe la key worker:* (TTL activo).
-    """
     count = 0
-
     for key in redisClient.scan_iter("worker:*"):
-        raw = redisClient.get(key)
-        if not raw:
+        data = redisClient.hgetall(key)
+        if not data:
             continue
-
-        try:
-            worker = json.loads(raw)
-        except Exception:
-            continue
-
-        if worker.get("type") == "gpu":
+        if data.get("type") == "gpu":
             count += 1
-
     return count
 
 
