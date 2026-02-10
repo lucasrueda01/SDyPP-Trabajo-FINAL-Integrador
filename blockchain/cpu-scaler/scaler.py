@@ -32,6 +32,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cpu-scaler")
 
 last_scale_time = 0
+last_seen_cache = {}
 
 
 # ---------- Redis ----------
@@ -62,7 +63,6 @@ def get_alive_workers(redis_client):
         alive.append(data)
 
     return alive
-
 
 
 # ---------- GCP ----------
@@ -155,6 +155,31 @@ def reconcile(redis_client):
     for w in alive:
         wid = w.get("id", "unknown")
         wtype = w.get("type", "unknown")
+        last_seen = w.get("last_seen")
+
+        if last_seen is None:
+            continue
+
+        # 1️⃣ Edad del heartbeat
+        age = now - last_seen
+        metrics.worker_heartbeat_age_seconds.labels(id=wid, type=wtype).set(age)
+
+        # 2️⃣ Delta entre heartbeats
+        prev = last_seen_cache.get(wid)
+        if prev is not None:
+            delta = last_seen - prev
+            metrics.worker_heartbeat_interval_seconds.labels(id=wid, type=wtype).set(
+                delta
+            )
+
+        last_seen_cache[wid] = last_seen
+
+        # 3️⃣ Cerca de expirar (ej: >70% del TTL)
+        if age > settings.HEARTBEAT_TTL * 0.7:
+            if wtype == "cpu":
+                near_expiry_cpu += 1
+            elif wtype == "gpu":
+                near_expiry_gpu += 1
 
         # ---- conteo por tipo ----
         if wtype == "cpu":
@@ -174,6 +199,8 @@ def reconcile(redis_client):
     metrics.total_workers_cpu.set(cpu_alive)
     metrics.total_workers_gpu.set(gpu_alive)
     metrics.total_workers.set(len(alive))
+    metrics.workers_near_expiry.labels(type="cpu").set(near_expiry_cpu)
+    metrics.workers_near_expiry.labels(type="gpu").set(near_expiry_gpu)
 
     # --- lógica de escalado ----
     if now - last_scale_time < settings.SCALE_COOLDOWN:

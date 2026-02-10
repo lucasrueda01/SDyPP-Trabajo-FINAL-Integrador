@@ -85,5 +85,27 @@ worker_info = Gauge(
     ["id", "type", "ip", "capacity"],
 )
 
+worker_heartbeat_age_seconds = Gauge(
+    "worker_heartbeat_age_seconds",
+    "Seconds since last heartbeat from worker",
+    ["id", "type"]
+)
+
+# Tiempo entre heartbeats consecutivos
+worker_heartbeat_interval_seconds = Gauge(
+    "worker_heartbeat_interval_seconds",
+    "Seconds between consecutive heartbeats",
+    ["id", "type"]
+)
+
+# Workers cuyo heartbeat está cerca de expirar
+workers_near_expiry = Gauge(
+    "workers_near_expiry",
+    "Number of workers close to heartbeat expiry",
+    ["type"]
+)
+
+
+
 def update_uptime():
     uptime_seconds.set(time.time() - _start_time)
