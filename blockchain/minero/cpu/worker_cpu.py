@@ -282,9 +282,10 @@ def heartbeat_loop():
 
     while True:
         try:
-            requests.post(url, json=payload, timeout=5)
-        except Exception:
+            requests.post(url, json=payload, timeout=settings.HEARTBEAT_TIMEOUT)
+        except Exception as e:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
+            logger.error("[%s]", e)
 
         time.sleep(settings.HEARTBEAT_INTERVAL)
 
