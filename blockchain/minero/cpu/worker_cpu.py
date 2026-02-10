@@ -1,6 +1,6 @@
 import json
 import hashlib
-from multiprocessing import Process
+from threading import Thread
 import random
 import requests
 import time
@@ -343,15 +343,15 @@ def main():
         auto_ack=False,
     )
     
-    # Iniciamos heartbeat en proceso separado para no bloquear el consumo de mensajes
-    hb_process = Process(
+    # Iniciamos heartbeat en hilo separado para no bloquear el consumo de mensajes
+    hb_thread = Thread(
         target=heartbeat_loop,
         daemon=True,
-        name="heartbeat-process",
+        name="heartbeat-thread",
     )
-    hb_process.start()
+    hb_thread.start()
     
-    logger.info("[%s] Heartbeat process iniciado (pid=%s)", WORKER_ID, hb_process.pid)
+    logger.info("[%s] Heartbeat thread iniciado (name=%s)", WORKER_ID, hb_thread.name)
 
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
 
