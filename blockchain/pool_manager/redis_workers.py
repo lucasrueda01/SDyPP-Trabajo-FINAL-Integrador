@@ -52,22 +52,13 @@ def register_worker(redis_client, wid, data, ip):
 
 def heartbeat(redis_client, wid):
     key = f"worker:{wid}"
-    raw = redis_client.get(key)
-    if not raw:
+
+    if not redis_client.exists(key):
         logger.warning("Heartbeat recibido de worker no registrado: %s", wid)
         return False
-    data = json.loads(raw)
-
-    data["last_heartbeat"] = time.time()
-    pipe = redis_client.pipeline()
-    pipe.set(key, json.dumps(data))
-    pipe.expire(key, settings.HEARTBEAT_TTL)
-    pipe.execute()
-
-    logger.debug(
-        "Heartbeat recibido de worker %s, TTL renovado y last_heartbeat actualizado",
-        wid,
-    )
+    
+    logger.debug("Heartbeat recibido de worker %s, renovando TTL", wid)
+    redis_client.expire(key, settings.HEARTBEAT_TTL)
     return True
 
 

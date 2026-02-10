@@ -137,7 +137,6 @@ def reconcile(redis_client):
     # Metricas
     metrics.reconciliations_total.inc()
     metrics.worker_info.clear()
-    metrics.worker_heartbeat_age_seconds.clear()
 
     alive = get_alive_workers(redis_client)
 
@@ -161,14 +160,6 @@ def reconcile(redis_client):
             ip=w.get("ip", "unknown"),
             capacity=str(w.get("capacity", "")),
         ).set(1)
-
-        # ---- edad del heartbeat ----
-        last = w.get("last_heartbeat")
-        if last is not None:
-            metrics.worker_heartbeat_age_seconds.labels(
-                id=wid,
-                type=wtype,
-            ).set(now - last)
 
     # ---- métricas agregadas ----
     metrics.total_workers_cpu.set(cpu_alive)
