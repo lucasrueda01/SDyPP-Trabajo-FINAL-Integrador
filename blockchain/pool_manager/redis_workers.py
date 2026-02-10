@@ -59,11 +59,10 @@ def heartbeat(redis_client, wid):
     data = json.loads(raw)
 
     data["last_heartbeat"] = time.time()
-    redis_client.set(
-        key,
-        json.dumps(data),
-        ex=settings.HEARTBEAT_TTL,
-    )
+    pipe = redis_client.pipeline()
+    pipe.set(key, json.dumps(data))
+    pipe.expire(key, settings.HEARTBEAT_TTL)
+    pipe.execute()
 
     logger.debug(
         "Heartbeat recibido de worker %s, TTL renovado y last_heartbeat actualizado",
