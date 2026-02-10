@@ -151,6 +151,8 @@ def reconcile(redis_client):
 
     cpu_alive = 0
     gpu_alive = 0
+    near_expiry_cpu = 0
+    near_expiry_gpu = 0
 
     for w in alive:
         wid = w.get("id", "unknown")
