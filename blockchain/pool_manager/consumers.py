@@ -6,22 +6,22 @@ from dispatcher import dispatch_to_workers
 from redis_workers import get_alive_workers
 from fragmenter import fragmentar
 from rabbitmq import safe_publish
-import metrics
 
 
 logger = logging.getLogger("pool-manager")
 
+connection, channel_pool = queue_connect()
+channel_dlq = connection.channel()
 
 def start_pool_consumer(redis_client):
-    connection, channel = queue_connect()
-    channel.basic_qos(prefetch_count=1)
+    channel_pool.basic_qos(prefetch_count=1)
 
     def on_message(ch, method, properties, body):
 
         block = json.loads(body)
         alive, _ = get_alive_workers(redis_client)
 
-        ok = dispatch_to_workers(block, alive, channel)
+        ok = dispatch_to_workers(block, alive, channel_pool)
 
         logger.info(
             "Recibido bloque %s desde pool_tasks",
@@ -35,18 +35,17 @@ def start_pool_consumer(redis_client):
             time.sleep(5)
             ch.basic_nack(method.delivery_tag, requeue=True)
 
-    channel.basic_consume(
+    channel_pool.basic_consume(
         queue="pool_tasks",
         on_message_callback=on_message,
         auto_ack=False,
     )
 
-    channel.start_consuming()
+    channel_pool.start_consuming()
 
 
 def start_dlq_consumer(redis_client):
-    connection, channel = queue_connect()
-    channel.basic_qos(prefetch_count=1)
+    channel_dlq.basic_qos(prefetch_count=1)
 
     def on_dlq(ch, method, properties, body):
         block = json.loads(body)
@@ -68,7 +67,7 @@ def start_dlq_consumer(redis_client):
 
         for payload in cpu_payloads:
             safe_publish(
-                channel,
+                channel_dlq,
                 "blocks_cooperative",
                 "blocks.cpu",
                 json.dumps(payload),
@@ -76,10 +75,10 @@ def start_dlq_consumer(redis_client):
 
         ch.basic_ack(method.delivery_tag)
 
-    channel.basic_consume(
+    channel_dlq.basic_consume(
         queue="queue.dlq",
         on_message_callback=on_dlq,
         auto_ack=False,
     )
 
-    channel.start_consuming()
+    channel_dlq.start_consuming()
