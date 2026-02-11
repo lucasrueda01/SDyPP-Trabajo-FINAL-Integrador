@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - blockchain-apps-config.yaml
+  - worker-cpu-configmap.yaml
 
   # Coordinator
   - coordinator/coordinator-deployment.yaml
@@ -19,6 +20,7 @@ resources:
 
   # Secret de acceso a Rabbit
   - rabbitmq/rabbitmq-secret-apps.yaml
+
 
 images:
   - name: ghcr.io/lucasrueda01/blockchain-coordinator
