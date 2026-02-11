@@ -155,7 +155,7 @@ def reconcile(redis_client):
     metrics.worker_heartbeat_interval_seconds.clear()
 
     alive = get_alive_workers(redis_client)
-
+    logger.info("Workers vivos detectados: %d", len(alive))
     cpu_alive = 0
     gpu_alive = 0
     near_expiry_cpu = 0
