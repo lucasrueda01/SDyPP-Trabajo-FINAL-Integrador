@@ -31,7 +31,13 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🔄 Leer outputs Terraform (IP pública Rabbit)
+      # 🏗️ Instalar Terraform (NECESARIO para leer outputs)
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      # 🔄 Leer IP pública de Rabbit desde Terraform
       - name: Get Terraform outputs
         run: |
           cd $TF_WORKING_DIR
@@ -45,12 +51,12 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🚀 Aplicar todo el core EXCEPTO el Service externo
+      # 🚀 Aplicar todo el core (excepto service externo)
       - name: Apply Core Manifests
         run: |
           kubectl apply -k $K8S_CORE_DIR
 
-      # 🌍 Aplicar Service externo con envsubst (inyecta IP fija)
+      # 🌍 Aplicar Service externo con IP fija
       - name: Apply Rabbit External Service
         run: |
           cd $K8S_CORE_DIR/rabbitmq
