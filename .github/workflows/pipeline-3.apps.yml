@@ -110,7 +110,7 @@ jobs:
         run: |
           kubectl rollout status deployment/coordinator -n blockchain-apps --timeout=300s
           kubectl rollout status deployment/pool-manager -n blockchain-apps --timeout=300s
-          kubectl rollout status deployment/cpu-scaler -n blockchain-apps --timeout=300s
+          kubectl rollout status deployment/cpu-scaler -n blockchain-infra --timeout=300s
 
       - name: Verify pods
         run: |
