@@ -322,8 +322,6 @@ def main():
         durable=True,
     )
 
-    channel.queue_declare(queue="queue.cpu", durable=True)
-
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
         queue="queue.cpu",

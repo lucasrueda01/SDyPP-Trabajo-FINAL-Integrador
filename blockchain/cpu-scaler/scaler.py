@@ -151,6 +151,9 @@ def reconcile(redis_client):
     # ---- métricas base ----
     metrics.reconciliations_total.inc()
     metrics.worker_info.clear()
+    metrics.worker_heartbeat_age_seconds.clear()
+    metrics.worker_heartbeat_interval_seconds.clear()
+
 
     alive = get_alive_workers(redis_client)
 

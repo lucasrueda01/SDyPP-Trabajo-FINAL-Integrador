@@ -25,6 +25,54 @@ def queue_connect(retries=10, delay=3):
 
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
+
+            # Exchanges
+            channel.exchange_declare(
+                exchange="blocks_cooperative",
+                exchange_type="topic",
+                durable=True,
+            )
+
+            channel.exchange_declare(
+                exchange="blocks_competitive",
+                exchange_type="fanout",
+                durable=True,
+            )
+
+            # Pool queue
+            channel.queue_declare(queue="pool_tasks", durable=True)
+
+            # ===== DLQ =====
+            dlx_name = "dlx.tasks"
+            gpu_ttl = 60000  # ms
+
+            channel.exchange_declare(
+                exchange=dlx_name,
+                exchange_type="fanout",
+                durable=True,
+            )
+
+            channel.queue_declare(queue="queue.dlq", durable=True)
+            channel.queue_bind(exchange=dlx_name, queue="queue.dlq")
+
+            # ===== WORKER QUEUES (CANÓNICAS) =====
+
+            # CPU (simple)
+            channel.queue_declare(
+                queue="queue.cpu",
+                durable=True,
+            )
+
+            # GPU (TTL + DLQ DEFINITIVO)
+            channel.queue_declare(
+                queue="queue.gpu",
+                durable=True,
+                arguments={
+                    "x-message-ttl": gpu_ttl,
+                    "x-dead-letter-exchange": dlx_name,
+                    "x-dead-letter-routing-key": "dlq",  # <-- CLAVE
+                },
+            )
             return connection, channel
 
         except Exception:
@@ -36,7 +84,6 @@ def queue_connect(retries=10, delay=3):
             time.sleep(delay)
 
     raise Exception("No se pudo conectar a RabbitMQ")
-
 
 
 def safe_publish(channel, exchange, routing_key, body):
