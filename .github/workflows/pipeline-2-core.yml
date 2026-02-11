@@ -7,6 +7,7 @@ env:
   CLUSTER_NAME: cluster-blockchain
   CLUSTER_REGION: us-central1
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  K8S_CORE_DIR: blockchain/infraestructura/k8s/core
 
 jobs:
   deploy-core:
@@ -36,27 +37,10 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🏗️ Crear namespace
-      - name: Apply namespace
+      # 🚀 Deploy Core con Kustomize
+      - name: Apply Core Manifests
         run: |
-          kubectl apply -f blockchain/infraestructura/k8s/namespace.yaml
-
-      # 🔐 Aplicar secrets
-      - name: Apply RabbitMQ Secret
-        run: |
-          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-secret-infra.yaml
-
-      # 🧠 Redis
-      - name: Apply Redis
-        run: |
-          kubectl apply -f blockchain/infraestructura/k8s/redis-service.yaml
-          kubectl apply -f blockchain/infraestructura/k8s/redis-statefulset.yaml
-
-      # 🐇 RabbitMQ
-      - name: Apply RabbitMQ
-        run: |
-          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-service.yaml
-          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-statefulset.yaml
+          kubectl apply -k $K8S_CORE_DIR
 
       # ⏳ Esperar Redis
       - name: Wait for Redis
