@@ -46,6 +46,15 @@ spec:
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
+              
+            - name: COORDINADOR_HOST
+              value: "${COORDINATOR_IP}"
+
+            - name: RABBIT_HOST
+              value: "${RABBIT_IP}"
+
+            - name: POOL_MANAGER_HOST
+              value: "${POOL_MANAGER_IP}"
 
           envFrom:
             - configMapRef:

@@ -3,37 +3,69 @@ set -e
 
 echo "Inicializando worker CPU..."
 
-# -----------------------------
-# Variables de entorno
-# -----------------------------
-export COORDINADOR_HOST="${coordinator_host}"
-export COORDINADOR_PORT="5000"
+# =========================================
+# 1️⃣ Función para leer metadata (si existe)
+# =========================================
+get_metadata() {
+  curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" || true
+}
 
-export RABBIT_HOST="${rabbit_host}"
-export RABBIT_USER="blockchain"
-export RABBIT_PASSWORD="blockchain123"
-export RABBIT_PORT="5672"
-export RABBIT_VHOST="blockchain"
+# =========================================
+# 2️⃣ Obtener variables (metadata o fallback)
+# =========================================
 
-export POOL_MANAGER_HOST="${pool_manager_host}"
-export POOL_MANAGER_PORT="6000"
+COORDINADOR_HOST=$(get_metadata "COORDINADOR_HOST")
+RABBIT_HOST=$(get_metadata "RABBIT_HOST")
+POOL_MANAGER_HOST=$(get_metadata "POOL_MANAGER_HOST")
+CPU_CAPACITY=$(get_metadata "CPU_CAPACITY")
 
-export CPU_CAPACITY="10"
-export HEARTBEAT_TTL="180"
-export HEARTBEAT_INTERVAL="10"
-export HEARTBEAT_TIMEOUT="8"
-export TZ="America/Argentina/Buenos_Aires"
+# Si no vienen por metadata (caso Terraform base), usar valores ya seteados
+COORDINADOR_HOST=${COORDINADOR_HOST:-"${coordinator_host}"}
+RABBIT_HOST=${RABBIT_HOST:-"${rabbit_host}"}
+POOL_MANAGER_HOST=${POOL_MANAGER_HOST:-"${pool_manager_host}"}
+CPU_CAPACITY=${CPU_CAPACITY:-"10"}
 
-# -----------------------------
-# Dependencias
-# -----------------------------
+# Variables estáticas
+COORDINADOR_PORT="5000"
+RABBIT_USER="blockchain"
+RABBIT_PASSWORD="blockchain123"
+RABBIT_PORT="5672"
+RABBIT_VHOST="blockchain"
+POOL_MANAGER_PORT="6000"
+
+HEARTBEAT_TTL="180"
+HEARTBEAT_INTERVAL="10"
+HEARTBEAT_TIMEOUT="8"
+TZ="America/Argentina/Buenos_Aires"
+
+export COORDINADOR_HOST
+export COORDINADOR_PORT
+export RABBIT_HOST
+export RABBIT_USER
+export RABBIT_PASSWORD
+export RABBIT_PORT
+export RABBIT_VHOST
+export POOL_MANAGER_HOST
+export POOL_MANAGER_PORT
+export CPU_CAPACITY
+export HEARTBEAT_TTL
+export HEARTBEAT_INTERVAL
+export HEARTBEAT_TIMEOUT
+export TZ
+
+echo "Variables configuradas correctamente"
+
+# =========================================
+# 3️⃣ Instalar Docker
+# =========================================
 apt-get update
 apt-get install -y docker.io
 systemctl enable --now docker
 
-# -----------------------------
-# Ejecutar worker
-# -----------------------------
+# =========================================
+# 4️⃣ Ejecutar contenedor
+# =========================================
 docker rm -f worker_cpu || true
 
 docker run -d \

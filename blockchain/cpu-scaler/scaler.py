@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import logging
@@ -26,6 +27,9 @@ CPU_TAGS = ["worker-cpu"]
 
 STARTUP_SCRIPT_PATH = "/scripts/worker_cpu_startup.sh"
 MAX_CPU_WORKERS = 10
+COORDINADOR_HOST = os.getenv("COORDINADOR_HOST")
+RABBIT_HOST = os.getenv("RABBIT_HOST")
+POOL_MANAGER_HOST = os.getenv("POOL_MANAGER_HOST")
 
 # =========================
 
@@ -99,6 +103,18 @@ def create_cpu_worker():
                 compute_v1.Items(
                     key="startup-script",
                     value=load_startup_script(),
+                ),
+                compute_v1.Items(
+                    key="COORDINADOR_HOST",
+                    value=COORDINADOR_HOST,
+                ),
+                compute_v1.Items(
+                    key="RABBIT_HOST",
+                    value=RABBIT_HOST,
+                ),
+                compute_v1.Items(
+                    key="POOL_MANAGER_HOST",
+                    value=POOL_MANAGER_HOST,
                 )
             ]
         ),
