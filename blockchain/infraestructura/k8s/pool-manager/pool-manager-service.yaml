@@ -5,6 +5,7 @@ metadata:
   namespace: blockchain-apps
 spec:
   type: LoadBalancer
+  loadbalancerIP: ${POOL_MANAGER_HOST}
   selector:
     app: pool-manager
   ports:

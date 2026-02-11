@@ -5,6 +5,7 @@ metadata:
   namespace: blockchain-apps
 spec:
   type: LoadBalancer
+  loadbalancerIP: ${COORDINATOR_HOST}
   selector:
     app: coordinator
   ports:

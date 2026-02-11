@@ -6,3 +6,10 @@ resource "google_storage_bucket" "blockchain_bucket" {
   uniform_bucket_level_access = true
   force_destroy = true
 }
+
+terraform {
+  backend "gcs" {
+    bucket  = "tf-state-blockchain"
+    prefix  = "cluster/state"
+  }
+}

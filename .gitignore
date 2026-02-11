@@ -5,7 +5,6 @@ terraform.tfstate.backup
 uploads/
 *.hcl
 .vscode/
-.github/
 .ssh/
 *.log
 *.pycache/
@@ -24,3 +23,6 @@ docker-compose.yaml
 terraform.tfstate
 docker-compose-local.yaml
 *.json
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup

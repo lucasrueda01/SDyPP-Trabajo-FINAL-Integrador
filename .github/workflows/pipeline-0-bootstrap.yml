@@ -1,0 +1,47 @@
+name: pipeline-0-bootstrap
+
+on:
+  workflow_dispatch:
+
+env:
+  TF_VERSION: 1.6.6
+  TF_WORKING_DIR: blockchain/infraestructura/terraform/bootstrap
+  REGION: us-central1
+  STATE_BUCKET: tf-state-blockchain
+
+jobs:
+  bootstrap:
+    name: Create Terraform Backend Bucket
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 🔐 Autenticación con GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 🏗️ Instalar Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: |
+          cd $TF_WORKING_DIR
+          terraform init -input=false
+
+      - name: Terraform Apply
+        run: |
+          cd $TF_WORKING_DIR
+          terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=$REGION" \
+            -var="state_bucket_name=$STATE_BUCKET"

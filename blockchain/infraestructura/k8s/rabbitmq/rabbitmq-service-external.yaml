@@ -5,6 +5,7 @@ metadata:
   namespace: blockchain-infra
 spec:
   type: LoadBalancer
+  loadbalancerIP: ${RABBIT_IP}
   selector:
     app: rabbitmq
   ports:
