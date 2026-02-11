@@ -10,10 +10,9 @@ from rabbitmq import safe_publish
 
 logger = logging.getLogger("pool-manager")
 
-connection, channel_pool = queue_connect()
-channel_dlq = connection.channel()
 
 def start_pool_consumer(redis_client):
+    connection, channel_pool = queue_connect()
     channel_pool.basic_qos(prefetch_count=1)
 
     def on_message(ch, method, properties, body):
@@ -45,6 +44,7 @@ def start_pool_consumer(redis_client):
 
 
 def start_dlq_consumer(redis_client):
+    connection, channel_dlq = queue_connect()
     channel_dlq.basic_qos(prefetch_count=1)
 
     def on_dlq(ch, method, properties, body):
