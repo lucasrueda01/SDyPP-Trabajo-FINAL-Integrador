@@ -65,6 +65,14 @@ def heartbeat():
 
     return jsonify({"status": "ok"})
 
+@app.route("/deregister", methods=["POST"])
+def deregister():
+    data = request.get_json()
+    wid = data["id"]
+    redis_client.delete(f"worker:{wid}")
+    return jsonify({"status": "deleted"})
+
+
 
 metrics.start_metrics_server(8000)
 threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=True).start()

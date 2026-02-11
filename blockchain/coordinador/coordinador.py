@@ -235,7 +235,7 @@ def status():
 def receive_solved_task():
     data = request.get_json()
     if not data or not data.get("result"):
-        return jsonify({"message": "Resultado inválido"}), 202
+        return jsonify({"message": "Resultado invalido"}), 202
 
     block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")

@@ -6,6 +6,7 @@ import requests
 import time
 import sys
 import logging
+import signal
 
 import pika
 import config.settings as settings
@@ -290,6 +291,19 @@ def heartbeat_loop():
         time.sleep(settings.HEARTBEAT_INTERVAL)
 
 
+def graceful_shutdown(signum, frame):
+    logger.info("[%s] Apagado detectado, notificando al pool manager...", WORKER_ID)
+    try:
+        requests.post(
+            f"http://{pool_manager_host}:{pool_manager_port}/deregister",
+            json={"id": WORKER_ID, "type": "cpu"},
+            timeout=3,
+        )
+    except Exception as e:
+        logger.warning("No se pudo notificar deregister: %s", e)
+    sys.exit(0)
+
+
 # -----------------------
 # Main
 # -----------------------
@@ -351,6 +365,9 @@ def main():
 
     logger.info("[%s] Heartbeat thread iniciado (name=%s)", WORKER_ID, hb_thread.name)
 
+    signal.signal(signal.SIGTERM, graceful_shutdown)
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    
     logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
 
     try:
