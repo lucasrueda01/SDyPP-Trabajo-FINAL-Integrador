@@ -321,6 +321,11 @@ def main():
     while True:
         metrics.update_uptime()
         try:
+            redis_client.ping()
+        except Exception:
+            logger.warning("Redis connection perdida, reconectando...")
+            redis_client = redis_connect()
+        try:
             reconcile(redis_client)
         except Exception as e:
             metrics.errors_total.inc()
