@@ -9,18 +9,17 @@ logger = logging.getLogger("pool-manager")
 def queue_connect(retries=10, delay=3):
     for i in range(retries):
         try:
+            logger.info("Conectando a RabbitMQ (TX)...")
             if settings.RABBIT_URL:
                 params = pika.URLParameters(settings.RABBIT_URL)
             else:
                 params = pika.ConnectionParameters(
                     host=settings.RABBIT_HOST,
-                    port=int(settings.RABBIT_PORT),
-                    virtual_host=settings.RABBIT_VHOST,
                     credentials=pika.PlainCredentials(
-                        settings.RABBIT_USER,
-                        settings.RABBIT_PASSWORD,
+                        settings.RABBIT_USER, settings.RABBIT_PASSWORD
                     ),
                     heartbeat=600,
+                    blocked_connection_timeout=300,
                 )
 
             connection = pika.BlockingConnection(params)
@@ -73,6 +72,8 @@ def queue_connect(retries=10, delay=3):
                     "x-dead-letter-routing-key": "dlq",  # <-- CLAVE
                 },
             )
+            
+            logger.info("Conectado a RabbitMQ en %s:%s", params.host, params.port)
             return connection, channel
 
         except Exception:
