@@ -8,7 +8,6 @@ resources:
   # RabbitMQ
   - rabbitmq/rabbitmq-secret-infra.yaml
   - rabbitmq/rabbitmq-service.yaml
-  - rabbitmq/rabbitmq-service-external.yaml
   - rabbitmq/rabbitmq-statefulset.yaml
 
   # Redis

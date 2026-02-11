@@ -7,6 +7,7 @@ env:
   CLUSTER_NAME: cluster-blockchain
   CLUSTER_REGION: us-central1
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
   K8S_CORE_DIR: blockchain/infraestructura/k8s/core
 
 jobs:
@@ -30,6 +31,13 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
+      # 🔄 Leer outputs Terraform (IP pública Rabbit)
+      - name: Get Terraform outputs
+        run: |
+          cd $TF_WORKING_DIR
+          terraform init -input=false
+          echo "RABBIT_IP=$(terraform output -raw rabbit_ip)" >> $GITHUB_ENV
+
       # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
         run: |
@@ -37,10 +45,16 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🚀 Deploy Core con Kustomize
+      # 🚀 Aplicar todo el core EXCEPTO el Service externo
       - name: Apply Core Manifests
         run: |
           kubectl apply -k $K8S_CORE_DIR
+
+      # 🌍 Aplicar Service externo con envsubst (inyecta IP fija)
+      - name: Apply Rabbit External Service
+        run: |
+          cd $K8S_CORE_DIR/rabbitmq
+          envsubst < rabbitmq-service-external.yaml | kubectl apply -f -
 
       # ⏳ Esperar Redis
       - name: Wait for Redis
@@ -53,6 +67,10 @@ jobs:
           kubectl rollout status statefulset/rabbitmq -n blockchain-infra --timeout=300s
 
       # 🔎 Verificación final
+      - name: Verify Services
+        run: |
+          kubectl get svc -n blockchain-infra
+
       - name: Verify Pods
         run: |
           kubectl get pods -n blockchain-infra
