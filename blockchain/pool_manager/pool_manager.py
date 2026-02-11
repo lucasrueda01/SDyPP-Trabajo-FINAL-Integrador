@@ -33,7 +33,12 @@ logger.info("Pool Manager iniciando")
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
     metrics.update_uptime()
-
+    try:
+        redis_client.ping()
+    except Exception:
+        logger.warning("Redis reconectando...")
+        redis_client = redis_connect()
+        
     data = request.get_json()
     wid = data["id"]
     wtype = data["type"]
@@ -49,9 +54,13 @@ def heartbeat():
         "last_seen": time.time(),
     }
 
-    redis_client.hset(key, mapping=worker_data)
-    redis_client.expire(key, settings.HEARTBEAT_TTL)
-
+    pipe = redis_client.pipeline()
+    pipe.hset(key, mapping=worker_data)
+    pipe.expire(key, settings.HEARTBEAT_TTL)
+    pipe.execute()
+    
+    ttl = redis_client.ttl(key)
+    logger.info("TTL actual para %s: %s", key, ttl)
     metrics.worker_heartbeats_total.inc()
 
     return jsonify({"status": "ok"})
