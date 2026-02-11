@@ -4,25 +4,21 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - blockchain-apps-config.yaml
-  - blockchain-infra-config.yaml
 
+  # Coordinator
   - coordinator/coordinator-deployment.yaml
   - coordinator/coordinator-service.yaml
 
+  # CPU Scaler
   - cpu-scaler/cpu-scaler-deployment.yaml
   - cpu-scaler/cpu-scaler-service-account.yaml
 
+  # Pool Manager
   - pool-manager/pool-manager-deployment.yaml
   - pool-manager/pool-manager-service.yaml
 
+  # Secret de acceso a Rabbit
   - rabbitmq/rabbitmq-secret-apps.yaml
-  - rabbitmq/rabbitmq-secret-infra.yaml
-  - rabbitmq/rabbitmq-service.yaml
-  - rabbitmq/rabbitmq-service-external.yaml
-  - rabbitmq/rabbitmq-statefulset.yaml
-
-  - redis/redis-service.yaml
-  - redis/redis-statefulset.yaml
 
 images:
   - name: ghcr.io/lucasrueda01/blockchain-coordinator

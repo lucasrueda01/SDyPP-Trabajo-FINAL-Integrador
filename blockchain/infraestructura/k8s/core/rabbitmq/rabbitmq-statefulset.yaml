@@ -22,9 +22,27 @@ spec:
           ports:
             - containerPort: 5672
             - containerPort: 15672
+
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: RABBIT_USER
+
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-credentials
+                  key: RABBIT_PASSWORD
+
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: blockchain
+
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq
+
   volumeClaimTemplates:
     - metadata:
         name: data

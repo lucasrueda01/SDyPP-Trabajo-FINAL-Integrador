@@ -1,0 +1,74 @@
+name: pipeline-2-core
+
+on:
+  workflow_dispatch:
+
+env:
+  CLUSTER_NAME: cluster-blockchain
+  CLUSTER_REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  deploy-core:
+    name: Deploy Core Services (Redis + RabbitMQ)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 🔐 Autenticación con GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          install_components: gke-gcloud-auth-plugin
+
+      # 🎯 Obtener kubeconfig
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region $CLUSTER_REGION \
+            --project $PROJECT_ID
+
+      # 🏗️ Crear namespace
+      - name: Apply namespace
+        run: |
+          kubectl apply -f blockchain/infraestructura/k8s/namespace.yaml
+
+      # 🔐 Aplicar secrets
+      - name: Apply RabbitMQ Secret
+        run: |
+          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-secret-infra.yaml
+
+      # 🧠 Redis
+      - name: Apply Redis
+        run: |
+          kubectl apply -f blockchain/infraestructura/k8s/redis-service.yaml
+          kubectl apply -f blockchain/infraestructura/k8s/redis-statefulset.yaml
+
+      # 🐇 RabbitMQ
+      - name: Apply RabbitMQ
+        run: |
+          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-service.yaml
+          kubectl apply -f blockchain/infraestructura/k8s/rabbitmq-statefulset.yaml
+
+      # ⏳ Esperar Redis
+      - name: Wait for Redis
+        run: |
+          kubectl rollout status statefulset/redis -n blockchain-infra --timeout=300s
+
+      # ⏳ Esperar RabbitMQ
+      - name: Wait for RabbitMQ
+        run: |
+          kubectl rollout status statefulset/rabbitmq -n blockchain-infra --timeout=300s
+
+      # 🔎 Verificación final
+      - name: Verify Pods
+        run: |
+          kubectl get pods -n blockchain-infra
