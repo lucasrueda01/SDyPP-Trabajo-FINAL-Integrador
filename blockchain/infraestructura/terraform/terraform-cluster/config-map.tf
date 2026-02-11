@@ -6,9 +6,8 @@ resource "kubernetes_config_map_v1" "worker_cpu_script" {
     namespace = kubernetes_namespace_v1.blockchain_infra.metadata[0].name
   }
 
-
   data = {
-  "worker_cpu_startup.sh" = file("${path.module}/templates/worker_cpu_startup.sh")
-}
+  "worker_cpu_startup.sh" = file("${path.module}/../templates/worker_cpu_startup.sh")
+  }
 
 }

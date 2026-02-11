@@ -17,7 +17,7 @@ resource "google_compute_instance" "worker_cpu" {
   }
 
   metadata_startup_script = templatefile(
-    "${path.module}/templates/worker_cpu_startup.sh",
+    "${path.module}/../templates/worker_cpu_startup.sh",
     {
     rabbit_host       = data.terraform_remote_state.cluster.outputs.rabbit_ip
     coordinator_host  = data.terraform_remote_state.cluster.outputs.coordinator_ip
