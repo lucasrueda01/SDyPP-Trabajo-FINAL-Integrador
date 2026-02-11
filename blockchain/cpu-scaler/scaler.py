@@ -154,7 +154,6 @@ def reconcile(redis_client):
     metrics.worker_heartbeat_age_seconds.clear()
     metrics.worker_heartbeat_interval_seconds.clear()
 
-
     alive = get_alive_workers(redis_client)
 
     cpu_alive = 0
@@ -190,12 +189,13 @@ def reconcile(redis_client):
             elif wtype == "gpu":
                 near_expiry_gpu += 1
 
-        # Conteo
+        # Conteo por tipo
         if wtype == "cpu":
             cpu_alive += 1
         elif wtype == "gpu":
             gpu_alive += 1
 
+        # Info por worker
         metrics.worker_info.labels(
             id=wid,
             type=wtype,
@@ -212,6 +212,7 @@ def reconcile(redis_client):
 
     # ---- cooldown global ----
     if now - last_scale_time < settings.SCALE_COOLDOWN:
+        logger.info("Cooldown activo, no se evalúa escalado aún")
         return
 
     # ---- cálculo de demanda ----
@@ -232,7 +233,20 @@ def reconcile(redis_client):
 
     effective_cpu = settings.BASE_CPU_REPLICAS + len(dynamic_instances)
 
-    # ---- hysteresis correcto ----
+    logger.info(
+        "Estado actual: cpu_alive=%d gpu_alive=%d effective_cpu=%d target_cpu=%d dinámicos=%d",
+        cpu_alive,
+        gpu_alive,
+        effective_cpu,
+        target_cpu,
+        len(dynamic_instances),
+    )
+
+    # =========================================================
+    # HYSTERESIS: SOLO PARA SCALE-UP
+    # =========================================================
+    scale_up_allowed = True
+
     if effective_cpu < target_cpu:
         cpu_below_expected_counter += 1
         logger.info(
@@ -242,20 +256,23 @@ def reconcile(redis_client):
             cpu_below_expected_counter,
             CPU_CONFIRM_CYCLES,
         )
+
+        if cpu_below_expected_counter < CPU_CONFIRM_CYCLES:
+            logger.info(
+                "Faltante de CPU no confirmado (%d/%d). No se escala aún.",
+                cpu_below_expected_counter,
+                CPU_CONFIRM_CYCLES,
+            )
+            scale_up_allowed = False
     else:
+        if cpu_below_expected_counter != 0:
+            logger.info("CPU efectiva recuperada, reseteando contador de confirmación")
         cpu_below_expected_counter = 0
 
-    # ---- no escalar por estados transitorios ----
-    if cpu_below_expected_counter < CPU_CONFIRM_CYCLES:
-        logger.info(
-            "Faltante de CPU no confirmado (%d/%d). No se escala.",
-            cpu_below_expected_counter,
-            CPU_CONFIRM_CYCLES,
-        )
-        return
-
-    # ---- scale up / down real ----
-    if effective_cpu < target_cpu:
+    # =========================================================
+    # SCALE-UP (con hysteresis)
+    # =========================================================
+    if effective_cpu < target_cpu and scale_up_allowed:
         to_create = target_cpu - effective_cpu
 
         logger.warning(
@@ -270,15 +287,28 @@ def reconcile(redis_client):
             create_cpu_worker()
             metrics.vm_created_total.inc()
 
-    elif missing_gpus == 0 and dynamic_instances:
-        logger.warning(
-            "GPU disponible. Eliminando %d workers CPU dinámicos",
+    # =========================================================
+    # SCALE-DOWN PROPORCIONAL (SIN hysteresis)
+    # =========================================================
+    elif effective_cpu > target_cpu and dynamic_instances:
+        to_delete = min(
+            effective_cpu - target_cpu,
             len(dynamic_instances),
         )
 
-        for name in dynamic_instances:
+        logger.warning(
+            "Reduciendo CPU: eliminando %d workers dinámicos (actual=%d, target=%d)",
+            to_delete,
+            effective_cpu,
+            target_cpu,
+        )
+
+        for name in dynamic_instances[:to_delete]:
             delete_cpu_worker(name)
             metrics.vm_deleted_total.inc()
+
+    else:
+        logger.info("No se requieren acciones de escalado en este ciclo")
 
     last_scale_time = now
 
