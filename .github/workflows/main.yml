@@ -127,6 +127,19 @@ jobs:
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -k blockchain/infraestructura/k8s
+      
+      # 🔄 Forzar restart de servicios stateful
+      - name: Rollout restart services
+        run: |
+          kubectl rollout restart deployment cpu-scaler -n blockchain-infra
+          kubectl rollout restart deployment pool-manager -n blockchain-apps
+          kubectl rollout restart deployment coordinator -n blockchain-apps
+
+      - name: Wait for rollouts
+        run: |
+          kubectl rollout status deployment cpu-scaler -n blockchain-infra
+          kubectl rollout status deployment pool-manager -n blockchain-apps
+          kubectl rollout status deployment coordinator -n blockchain-apps
 
       # 🔍 Verificación básica
       - name: Verify pods (apps)

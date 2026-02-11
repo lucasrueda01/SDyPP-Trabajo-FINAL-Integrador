@@ -121,8 +121,15 @@ def on_message_received(ch, method, _, body):
         )
 
         start_time = time.time()
-        resultado = ejecutar_minero(from_nonce, to_nonce, prefix, hash_base)
+        resultado_raw = ejecutar_minero(from_nonce, to_nonce, prefix, hash_base)
         processing_time = time.time() - start_time
+
+        try:
+            resultado = json.loads(resultado_raw)
+        except Exception:
+            logger.exception("[%s] Respuesta inválida del minero GPU", WORKER_ID)
+            ch.basic_ack(method.delivery_tag)
+            return
 
         if not resultado.get("hash_md5_result"):
             logger.info(
