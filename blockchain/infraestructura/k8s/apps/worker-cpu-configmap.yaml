@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: worker-cpu-startup
-  namespace: blockchain-infra
-data:
-  worker_cpu_startup.sh: |
-    #!/bin/bash
-    echo "Startup script placeholder"

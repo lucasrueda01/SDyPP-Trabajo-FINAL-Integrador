@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - blockchain-apps-config.yaml
-  - worker-cpu-configmap.yaml
 
   # Coordinator
   - coordinator/coordinator-deployment.yaml

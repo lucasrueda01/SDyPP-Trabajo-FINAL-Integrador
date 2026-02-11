@@ -1,3 +1,5 @@
+# ConfigMap para el script de inicio de los workers CPU que usa el CPU scaler
+
 resource "kubernetes_config_map_v1" "worker_cpu_script" {
   metadata {
     name      = "worker-cpu-startup"
