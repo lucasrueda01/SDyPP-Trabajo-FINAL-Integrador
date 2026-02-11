@@ -65,6 +65,7 @@ def heartbeat():
 
     return jsonify({"status": "ok"})
 
+# Endpoint para eliminar un worker, sin usar pero podria ser útil
 @app.route("/deregister", methods=["POST"])
 def deregister():
     data = request.get_json()

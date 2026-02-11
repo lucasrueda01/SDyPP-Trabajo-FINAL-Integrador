@@ -53,6 +53,16 @@ def redisConnect():
     except Exception:
         logger.exception("Error conectando a Redis")
         raise
+    
+def get_redis():
+    global redisClient
+    try:
+        redisClient.ping()
+    except Exception:
+        logger.warning("Redis reconectando...")
+        redisClient = redisConnect()
+    return redisClient
+
 
 
 # -----------------------
@@ -145,15 +155,18 @@ def calculateHash(data):
 # Redis helpers
 # -----------------------
 def getUltimoBlock():
+    redisClient = get_redis()
     raw = redisClient.lindex("blockchain", 0)
     return json.loads(raw) if raw else None
 
 
 def existBlock(block_id):
+    redisClient = get_redis()
     return redisClient.sismember("block_ids", block_id)
 
 
 def postBlock(block):
+    redisClient = get_redis()
     pipe = redisClient.pipeline()
     pipe.lpush("blockchain", json.dumps(block))
     pipe.sadd("block_ids", block["blockId"])
@@ -161,12 +174,14 @@ def postBlock(block):
 
 
 def release_claim(claim_key, worker_id):
+    redisClient = get_redis()
     owner = redisClient.get(claim_key)
     if owner and owner.decode() == worker_id:
         redisClient.delete(claim_key)
 
 
 def gpus_vivas():
+    redisClient = get_redis()
     count = 0
     for key in redisClient.scan_iter("worker:*"):
         data = redisClient.hgetall(key)
@@ -234,7 +249,9 @@ def status():
 @app.route("/solved_task", methods=["POST"])
 def receive_solved_task():
     data = request.get_json()
+    redisClient = get_redis()
     if not data or not data.get("result"):
+        logger.info("Resultado invalido recibido: %s", data)
         return jsonify({"message": "Resultado invalido"}), 202
 
     block_id = data["blockId"]
