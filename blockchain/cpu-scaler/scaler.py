@@ -27,9 +27,10 @@ CPU_TAGS = ["worker-cpu"]
 
 STARTUP_SCRIPT_PATH = "/scripts/worker_cpu_startup.sh"
 MAX_CPU_WORKERS = 10
-COORDINADOR_HOST = os.getenv("COORDINADOR_HOST")
-RABBIT_HOST = os.getenv("RABBIT_HOST")
-POOL_MANAGER_HOST = os.getenv("POOL_MANAGER_HOST")
+RABBIT_EXTERNAL_HOST = os.getenv("RABBIT_EXTERNAL_HOST")
+COORD_EXTERNAL_HOST = os.getenv("COORDINADOR_EXTERNAL_HOST")
+POOL_EXTERNAL_HOST = os.getenv("POOL_MANAGER_EXTERNAL_HOST")
+
 
 # =========================
 
@@ -106,15 +107,15 @@ def create_cpu_worker():
                 ),
                 compute_v1.Items(
                     key="COORDINADOR_HOST",
-                    value=COORDINADOR_HOST,
+                    value=COORD_EXTERNAL_HOST,
                 ),
                 compute_v1.Items(
                     key="RABBIT_HOST",
-                    value=RABBIT_HOST,
+                    value=RABBIT_EXTERNAL_HOST,
                 ),
                 compute_v1.Items(
                     key="POOL_MANAGER_HOST",
-                    value=POOL_MANAGER_HOST,
+                    value=POOL_EXTERNAL_HOST,
                 )
             ]
         ),
@@ -333,6 +334,9 @@ def reconcile(redis_client):
 def main():
     redis_client = redis_connect()
     metrics.start_metrics_server(8000)
+    logger.info("Conectado al coordinador en %s", COORD_EXTERNAL_HOST)
+    logger.info("Conectado a RabbitMQ en %s", RABBIT_EXTERNAL_HOST)
+    logger.info("Conectado al Pool Manager en %s", POOL_EXTERNAL_HOST)
 
     while True:
         metrics.update_uptime()

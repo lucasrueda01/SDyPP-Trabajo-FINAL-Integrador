@@ -46,6 +46,12 @@ spec:
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
+            - name: RABBIT_EXTERNAL_HOST
+              value: ${RABBIT_EXTERNAL_HOST}
+            - name: COORDINADOR_EXTERNAL_HOST
+              value: ${COORDINADOR_EXTERNAL_HOST}
+            - name: POOL_MANAGER_EXTERNAL_HOST
+              value: ${POOL_MANAGER_EXTERNAL_HOST}
 
           envFrom:
             - configMapRef:

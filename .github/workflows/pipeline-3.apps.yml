@@ -89,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 🔐 Autenticación GCP
+      # 🔐 Auth GCP
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -99,19 +99,19 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🔧 Instalar Terraform
+      # 🔧 Terraform para leer outputs
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      # 📥 Obtener IPs del coordinator y pool-manager
       - name: Get Terraform outputs
         run: |
           cd $TF_WORKING_DIR
           terraform init -input=false
-          echo "COORDINADOR_HOST=$(terraform output -raw coordinator_ip)" >> $GITHUB_ENV
-          echo "POOL_MANAGER_HOST=$(terraform output -raw pool_manager_ip)" >> $GITHUB_ENV
+          echo "COORDINADOR_EXTERNAL_HOST=$(terraform output -raw coordinator_ip)" >> $GITHUB_ENV
+          echo "POOL_MANAGER_EXTERNAL_HOST=$(terraform output -raw pool_manager_ip)" >> $GITHUB_ENV
+          echo "RABBIT_EXTERNAL_HOST=$(terraform output -raw rabbit_ip)" >> $GITHUB_ENV
 
       # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
@@ -129,7 +129,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler=ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler:sha-${{ github.sha }}-${{ github.run_number }} \
             ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
 
-      # 🚀 Deploy con envsubst
+      # 🚀 Deploy con envsubst (inyecta IPs externas)
       - name: Deploy Apps
         run: |
           cd $K8S_APPS_DIR
@@ -142,7 +142,7 @@ jobs:
           kubectl rollout status deployment/pool-manager -n blockchain-apps --timeout=300s
           kubectl rollout status deployment/cpu-scaler -n blockchain-infra --timeout=300s
 
-      # 🔍 Verificación final
+      # 🔍 Verificación
       - name: Verify pods
         run: |
           kubectl get pods -n blockchain-apps
