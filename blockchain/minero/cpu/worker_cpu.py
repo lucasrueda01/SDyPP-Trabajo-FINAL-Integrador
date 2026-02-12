@@ -90,11 +90,11 @@ def connect_rabbit():
                 port=int(settings.RABBIT_PORT),
                 virtual_host=settings.RABBIT_VHOST or "/",
                 credentials=credentials,
-                heartbeat=1200,
-                blocked_connection_timeout=600,
+                heartbeat=20,
+                blocked_connection_timeout=120,
                 connection_attempts=10,
                 retry_delay=5,
-                socket_timeout=5,
+                socket_timeout=10,
             )
 
             connection = pika.BlockingConnection(params)
@@ -130,8 +130,8 @@ def ejecutar_minero(
 
     for nonce in range(from_val, to_val + 1):
         intentos += 1
-        # 🔥 Cada 100k intentos, mantenemos viva la conexión
-        if heartbeat_callback and intentos % 100000 == 0:
+        # 🔥 Cada 10k intentos, mantenemos viva la conexión
+        if heartbeat_callback and intentos % 10000 == 0:
             try:
                 heartbeat_callback()
             except Exception:
