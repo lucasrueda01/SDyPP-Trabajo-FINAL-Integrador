@@ -1,0 +1,42 @@
+name: pipeline-4-workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_count:
+        description: "Cantidad de workers CPU base"
+        required: true
+        default: "2"
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-workers
+
+jobs:
+  deploy-workers:
+    name: Deploy Base Worker VMs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 🔐 Auth GCP
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      # 🚀 Terraform Apply
+      - name: Deploy Worker VMs
+        run: |
+          cd $TF_WORKING_DIR
+          terraform init -input=false
+          terraform apply -auto-approve \
+            -var="project_id=${{ env.PROJECT_ID }}" \
+            -var="worker_cpu_count=${{ github.event.inputs.worker_count }}"

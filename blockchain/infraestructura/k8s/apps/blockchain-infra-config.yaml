@@ -7,10 +7,6 @@ data:
   REDIS_HOST: redis
   REDIS_TCP_PORT: "6379"
 
-  RABBIT_HOST: rabbitmq
-  RABBIT_TCP_PORT: "5672"
-  RABBIT_VHOST: blockchain
-
   BASE_CPU_REPLICAS: "2"
   CPUS_PER_GPU: "2"
   EXPECTED_GPUS: "1"

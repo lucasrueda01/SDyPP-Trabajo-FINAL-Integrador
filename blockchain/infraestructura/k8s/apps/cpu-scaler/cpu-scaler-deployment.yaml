@@ -50,8 +50,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: blockchain-infra-config
-            - secretRef:
-                name: rabbitmq-credentials
 
           volumeMounts:
             - name: worker-cpu-script
