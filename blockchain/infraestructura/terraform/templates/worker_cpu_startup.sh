@@ -18,13 +18,12 @@ get_metadata() {
 COORDINADOR_HOST=$(get_metadata "COORDINADOR_HOST")
 RABBIT_HOST=$(get_metadata "RABBIT_HOST")
 POOL_MANAGER_HOST=$(get_metadata "POOL_MANAGER_HOST")
-CPU_CAPACITY=$(get_metadata "CPU_CAPACITY")
+
 
 # Si no vienen por metadata (caso Terraform base), usar valores ya seteados
 COORDINADOR_HOST=${COORDINADOR_HOST:-"${coordinator_host}"}
 RABBIT_HOST=${RABBIT_HOST:-"${rabbit_host}"}
 POOL_MANAGER_HOST=${POOL_MANAGER_HOST:-"${pool_manager_host}"}
-CPU_CAPACITY=${CPU_CAPACITY:-"10"}
 
 # Variables estáticas
 COORDINADOR_PORT="5000"
@@ -33,6 +32,7 @@ RABBIT_PASSWORD="blockchain123"
 RABBIT_PORT="5672"
 RABBIT_VHOST="blockchain"
 POOL_MANAGER_PORT="6000"
+CPU_CAPACITY="10"
 
 HEARTBEAT_TTL="180"
 HEARTBEAT_INTERVAL="10"
