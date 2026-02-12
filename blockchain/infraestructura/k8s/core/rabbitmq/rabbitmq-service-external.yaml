@@ -6,8 +6,9 @@ metadata:
 spec:
   type: LoadBalancer
   loadBalancerIP: ${RABBIT_IP}
+  externalTrafficPolicy: Local
   selector:
-    app: rabbitmq
+    app.kubernetes.io/name: rabbitmq
   ports:
     - name: amqp
       port: 5672

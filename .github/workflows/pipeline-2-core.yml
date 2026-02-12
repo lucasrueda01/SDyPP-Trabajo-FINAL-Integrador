@@ -51,6 +51,18 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
+      # 🐇 Instalar RabbitMQ Cluster Operator
+      - name: Install RabbitMQ Cluster Operator
+        run: |
+          kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
+
+      # ⏳ Esperar Operator
+      - name: Wait for RabbitMQ Operator
+        run: |
+          kubectl wait --for=condition=Available deployment/rabbitmq-cluster-operator \
+            -n rabbitmq-system \
+            --timeout=300s
+
       # 🚀 Aplicar todo el core (excepto service externo)
       - name: Apply Core Manifests
         run: |
@@ -67,10 +79,10 @@ jobs:
         run: |
           kubectl rollout status statefulset/redis -n blockchain-infra --timeout=300s
 
-      # ⏳ Esperar RabbitMQ
-      - name: Wait for RabbitMQ
+      # ⏳ Esperar RabbitMQ Cluster
+      - name: Wait for RabbitMQ Cluster
         run: |
-          kubectl rollout status statefulset/rabbitmq -n blockchain-infra --timeout=300s
+          kubectl wait --for=condition=Ready rabbitmqcluster/rabbitmq -n blockchain-infra --timeout=300s
 
       # 🔎 Verificación final
       - name: Verify Services

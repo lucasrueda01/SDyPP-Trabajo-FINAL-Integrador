@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("worker_cpu")
-#logging.getLogger("pika").setLevel(logging.WARNING)
+logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
@@ -342,7 +342,7 @@ def main():
                 durable=True,
             )
 
-            result = channel.queue_declare("", exclusive=True)
+            result = channel.queue_declare("", exclusive=True, arguments={"x-queue-type": "quorum"})
             queue_competitive = result.method.queue
 
             channel.queue_bind(

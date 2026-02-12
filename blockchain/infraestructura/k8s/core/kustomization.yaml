@@ -5,9 +5,9 @@ resources:
   - namespace.yaml
 
   # RabbitMQ
-  - rabbitmq/rabbitmq-secret-infra.yaml
-  - rabbitmq/rabbitmq-service.yaml
-  - rabbitmq/rabbitmq-statefulset.yaml
+  - rabbitmq/rabbitmq-secret.yaml
+  - rabbitmq/rabbitmq-service-external.yaml
+  - rabbitmq/rabbitmq-cluster.yaml
 
   # Redis
   - redis/redis-service.yaml

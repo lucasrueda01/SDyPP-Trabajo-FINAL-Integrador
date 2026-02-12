@@ -39,7 +39,7 @@ def queue_connect(retries=10, delay=3):
             )
 
             # Pool queue
-            channel.queue_declare(queue="pool_tasks", durable=True)
+            channel.queue_declare(queue="pool_tasks", durable=True, arguments={"x-queue-type": "quorum"})
 
             # ===== DLQ =====
             dlx_name = "dlx.tasks"
@@ -51,7 +51,7 @@ def queue_connect(retries=10, delay=3):
                 durable=True,
             )
 
-            channel.queue_declare(queue="queue.dlq", durable=True)
+            channel.queue_declare(queue="queue.dlq", durable=True, arguments={"x-queue-type": "quorum"})
             channel.queue_bind(exchange=dlx_name, queue="queue.dlq")
 
             # ===== WORKER QUEUES (CANÓNICAS) =====
@@ -60,6 +60,7 @@ def queue_connect(retries=10, delay=3):
             channel.queue_declare(
                 queue="queue.cpu",
                 durable=True,
+                arguments={"x-queue-type": "quorum"}
             )
 
             # GPU (TTL + DLQ DEFINITIVO)
@@ -70,6 +71,7 @@ def queue_connect(retries=10, delay=3):
                     "x-message-ttl": gpu_ttl,
                     "x-dead-letter-exchange": dlx_name,
                     "x-dead-letter-routing-key": "dlq",  # <-- CLAVE
+                    "x-queue-type": "quorum",
                 },
             )
             

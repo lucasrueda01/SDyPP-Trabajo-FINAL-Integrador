@@ -53,7 +53,8 @@ def redisConnect():
     except Exception:
         logger.exception("Error conectando a Redis")
         raise
-    
+
+
 def get_redis():
     global redisClient
     try:
@@ -62,7 +63,6 @@ def get_redis():
         logger.warning("Redis reconectando...")
         redisClient = redisConnect()
     return redisClient
-
 
 
 # -----------------------
@@ -87,10 +87,10 @@ def queueConnect(retries=10, delay=3):
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
             channel.queue_declare(
-                "QueueTransactions", durable=True
+                "QueueTransactions", durable=True, arguments={"x-queue-type": "quorum"}
             )  # Cola de transacciones
             channel.queue_declare(
-                queue="pool_tasks", durable=True
+                queue="pool_tasks", durable=True, arguments={"x-queue-type": "quorum"}
             )  # Cola de bloques para minar
             logger.info("Conectado a RabbitMQ")
             return connection, channel

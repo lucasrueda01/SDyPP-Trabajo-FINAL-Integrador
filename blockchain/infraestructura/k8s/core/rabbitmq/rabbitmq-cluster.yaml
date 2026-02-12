@@ -1,0 +1,28 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: blockchain-infra
+spec:
+  replicas: 2
+
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+  persistence:
+    storage: 10Gi
+    storageClassName: standard-rwo
+
+  rabbitmq:
+    additionalConfig: |
+      cluster_partition_handling = autoheal
+      queue_master_locator = min-masters
+
+      default_user = blockchain
+      default_pass = blockchain123
+      default_vhost = blockchain
