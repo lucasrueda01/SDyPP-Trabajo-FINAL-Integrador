@@ -342,7 +342,7 @@ def main():
                 durable=True,
             )
 
-            result = channel.queue_declare("", exclusive=True, arguments={"x-queue-type": "quorum"})
+            result = channel.queue_declare("", exclusive=True, arguments={"x-queue-type": "classic"})
             queue_competitive = result.method.queue
 
             channel.queue_bind(

@@ -258,7 +258,7 @@ def main():
 
     result = channel.queue_declare("", exclusive=True)
     queue_competitive = result.method.queue
-    channel.queue_bind(exchange=EXCHANGE_COMPETITIVE, queue=queue_competitive, arguments={"x-queue-type": "quorum"})
+    channel.queue_bind(exchange=EXCHANGE_COMPETITIVE, queue=queue_competitive, arguments={"x-queue-type": "classic"})
 
     # -------- COOPERATIVO --------
     channel.exchange_declare(
