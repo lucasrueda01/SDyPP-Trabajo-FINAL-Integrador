@@ -19,11 +19,18 @@ COORDINADOR_HOST=$(get_metadata "COORDINADOR_HOST")
 RABBIT_HOST=$(get_metadata "RABBIT_HOST")
 POOL_MANAGER_HOST=$(get_metadata "POOL_MANAGER_HOST")
 
+if [ -z "$COORDINADOR_HOST" ]; then
+  COORDINADOR_HOST="${coordinator_host}"
+fi
 
-# Si no vienen por metadata (caso Terraform base), usar valores ya seteados
-COORDINADOR_HOST=${COORDINADOR_HOST:-"${coordinator_host}"}
-RABBIT_HOST=${RABBIT_HOST:-"${rabbit_host}"}
-POOL_MANAGER_HOST=${POOL_MANAGER_HOST:-"${pool_manager_host}"}
+if [ -z "$RABBIT_HOST" ]; then
+  RABBIT_HOST="${rabbit_host}"
+fi
+
+if [ -z "$POOL_MANAGER_HOST" ]; then
+  POOL_MANAGER_HOST="${pool_manager_host}"
+fi
+
 
 # Variables estáticas
 COORDINADOR_PORT="5000"
