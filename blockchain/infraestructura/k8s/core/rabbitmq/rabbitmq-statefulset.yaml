@@ -40,9 +40,6 @@ spec:
             - name: RABBITMQ_DEFAULT_VHOST
               value: blockchain
 
-            - name: RABBITMQ_VM_MEMORY_HIGH_WATERMARK
-              value: "0.8"
-
           resources:
             requests:
               memory: "256Mi"
