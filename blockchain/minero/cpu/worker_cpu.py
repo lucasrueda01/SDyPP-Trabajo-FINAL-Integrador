@@ -99,7 +99,8 @@ def connect_rabbit():
 
             connection = pika.BlockingConnection(params)
 
-            logger.info("[%s] Conectado correctamente a RabbitMQ", WORKER_ID)
+            logger.info("[%s] Conectado correctamente a RabbitMQ con %s:%s", WORKER_ID, params.host, params.port)
+            logger.debug("[%s] Parámetros de conexión: %s", WORKER_ID, params)
             return connection
 
         except pika.exceptions.AMQPConnectionError:
@@ -356,8 +357,6 @@ def main():
                 durable=True,
             )
 
-            channel.queue_declare(queue="queue.cpu", durable=True)
-
             channel.queue_bind(
                 exchange=EXCHANGE_COOPERATIVE,
                 queue="queue.cpu",
@@ -396,7 +395,7 @@ def main():
                 WORKER_ID,
             )
 
-            # 🔥 Esto bloquea hasta que se pierde conexión
+            logger.info("Registrando consumers en Rabbit")
             channel.start_consuming()
 
         except KeyboardInterrupt:
