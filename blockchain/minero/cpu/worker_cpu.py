@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("worker_cpu")
-logging.getLogger("pika").setLevel(logging.WARNING)
+#logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
