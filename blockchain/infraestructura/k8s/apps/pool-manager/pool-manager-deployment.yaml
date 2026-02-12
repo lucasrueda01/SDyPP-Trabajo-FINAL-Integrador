@@ -22,7 +22,7 @@ spec:
       imagePullSecrets:
         - name: ghcr-secret
       containers:
-        - name: coordinator
+        - name: pool-manager
           image: ghcr.io/lucasrueda01/blockchain-pool-manager
           imagePullPolicy: Always
           ports:

@@ -76,8 +76,8 @@ def deregister():
 
 
 metrics.start_metrics_server(8000)
-threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=True).start()
-threading.Thread(target=start_dlq_consumer, args=(redis_client,), daemon=True).start()
 
 if __name__ == "__main__":
+    threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=False).start()
+    threading.Thread(target=start_dlq_consumer, args=(redis_client,), daemon=False).start()
     app.run(host="0.0.0.0", port=settings.POOL_MANAGER_PORT)
