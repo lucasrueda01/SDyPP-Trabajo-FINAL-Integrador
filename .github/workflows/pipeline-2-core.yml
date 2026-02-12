@@ -59,8 +59,9 @@ jobs:
       # ⏳ Esperar Operator
       - name: Wait for RabbitMQ Operator
         run: |
-          kubectl wait --for=condition=Available deployment/rabbitmq-cluster-operator \
-            -n rabbitmq-system \
+          kubectl wait --for=jsonpath='{.status.conditions[?(@.type=="AllReplicasReady")].status}'=True \
+            rabbitmqcluster/rabbitmq \
+            -n blockchain-infra \
             --timeout=300s
 
       # 🚀 Aplicar todo el core (excepto service externo)
