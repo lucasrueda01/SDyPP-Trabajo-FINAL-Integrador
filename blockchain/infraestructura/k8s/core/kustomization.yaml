@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - blockchain-infra-config.yaml
 
   # RabbitMQ
   - rabbitmq/rabbitmq-secret-infra.yaml
