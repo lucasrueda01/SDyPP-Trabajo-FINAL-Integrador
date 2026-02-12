@@ -4,33 +4,12 @@ set -e
 echo "Inicializando worker CPU..."
 
 # =========================================
-# 1️⃣ Función para leer metadata (si existe)
-# =========================================
-get_metadata() {
-  curl -s -H "Metadata-Flavor: Google" \
-    "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" || true
-}
-
-# =========================================
 # 2️⃣ Obtener variables (metadata o fallback)
 # =========================================
 
-COORDINADOR_HOST=$(get_metadata "COORDINADOR_HOST")
-RABBIT_HOST=$(get_metadata "RABBIT_HOST")
-POOL_MANAGER_HOST=$(get_metadata "POOL_MANAGER_HOST")
-
-if [ -z "$COORDINADOR_HOST" ]; then
-  COORDINADOR_HOST="${coordinator_host}"
-fi
-
-if [ -z "$RABBIT_HOST" ]; then
-  RABBIT_HOST="${rabbit_host}"
-fi
-
-if [ -z "$POOL_MANAGER_HOST" ]; then
-  POOL_MANAGER_HOST="${pool_manager_host}"
-fi
-
+RABBIT_HOST="${rabbit_host}"
+COORDINADOR_HOST="${coordinator_host}"
+POOL_MANAGER_HOST="${pool_manager_host}"
 
 # Variables estáticas
 COORDINADOR_PORT="5000"
