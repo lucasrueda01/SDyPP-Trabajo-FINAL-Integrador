@@ -10,9 +10,12 @@ logger = logging.getLogger("pool-manager")
 def redis_connect():
     client = redis.Redis(
         host=settings.REDIS_HOST,
-        port=settings.REDIS_PORT,
-        db=0,
+        port=int(settings.REDIS_PORT),
         decode_responses=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+        retry_on_timeout=True,
     )
     client.ping()
     logger.info("Conectado a Redis")
