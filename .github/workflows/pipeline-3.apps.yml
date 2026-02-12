@@ -8,9 +8,13 @@ env:
   CLUSTER_NAME: cluster-blockchain
   CLUSTER_REGION: us-central1
   K8S_APPS_DIR: blockchain/infraestructura/k8s/apps
+  TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
 
 jobs:
 
+  # ==========================================
+  # 1️⃣ BUILD DE SERVICIOS
+  # ==========================================
   build-services:
     runs-on: ubuntu-latest
 
@@ -47,6 +51,9 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
 
+  # ==========================================
+  # 2️⃣ BUILD WORKER CPU
+  # ==========================================
   build-worker:
     runs-on: ubuntu-latest
 
@@ -70,6 +77,9 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/worker-cpu:latest
             ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}-${{ github.run_number }}
 
+  # ==========================================
+  # 3️⃣ DEPLOY APPS
+  # ==========================================
   deploy:
     needs:
       - build-services
@@ -79,6 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🔐 Autenticación GCP
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -88,12 +99,28 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
+      # 🔧 Instalar Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      # 📥 Obtener IPs del coordinator y pool-manager
+      - name: Get Terraform outputs
+        run: |
+          cd $TF_WORKING_DIR
+          terraform init -input=false
+          echo "COORDINADOR_HOST=$(terraform output -raw coordinator_ip)" >> $GITHUB_ENV
+          echo "POOL_MANAGER_HOST=$(terraform output -raw pool_manager_ip)" >> $GITHUB_ENV
+
+      # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
+      # 🧬 Setear imágenes dinámicas
       - name: Set image tags with Kustomize
         run: |
           cd $K8S_APPS_DIR
@@ -102,16 +129,21 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler=ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler:sha-${{ github.sha }}-${{ github.run_number }} \
             ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
 
+      # 🚀 Deploy con envsubst
       - name: Deploy Apps
         run: |
-          kubectl apply -k $K8S_APPS_DIR
+          cd $K8S_APPS_DIR
+          kustomize build . | envsubst | kubectl apply -f -
 
+      # 🔄 Esperar rollouts
       - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/coordinator -n blockchain-apps --timeout=300s
           kubectl rollout status deployment/pool-manager -n blockchain-apps --timeout=300s
           kubectl rollout status deployment/cpu-scaler -n blockchain-infra --timeout=300s
 
+      # 🔍 Verificación final
       - name: Verify pods
         run: |
           kubectl get pods -n blockchain-apps
+          kubectl get pods -n blockchain-infra
