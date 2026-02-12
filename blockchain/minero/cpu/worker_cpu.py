@@ -32,7 +32,6 @@ QUEUE_COOPERATIVE = "blocks_queue"
 
 hostCoordinador = settings.COORDINADOR_HOST
 puertoCoordinador = settings.COORDINADOR_PORT
-rabbit_url = settings.RABBIT_URL
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
@@ -80,26 +79,41 @@ def connect_rabbit():
     while True:
         try:
             logger.info("[%s] Conectando a RabbitMQ...", WORKER_ID)
-            if rabbit_url:
-                params = pika.URLParameters(rabbit_url)
-                logger.info("[%s] Conectado a RabbitMQ con URL", WORKER_ID)
-            else:
-                params = pika.ConnectionParameters(
-                    host=hostRabbit,
-                    credentials=pika.PlainCredentials(rabbitUser, rabbitPassword),
-                    heartbeat=600,
-                    blocked_connection_timeout=300,
-                )
-                logger.info("[%s] Conectado a RabbitMQ con credenciales", WORKER_ID)
+
+            credentials = pika.PlainCredentials(
+                rabbitUser,
+                rabbitPassword,
+            )
+
+            params = pika.ConnectionParameters(
+                host=hostRabbit,
+                port=int(settings.RABBIT_PORT),
+                virtual_host=settings.RABBIT_VHOST or "/",
+                credentials=credentials,
+                heartbeat=60,
+                blocked_connection_timeout=300,
+                connection_attempts=10,
+                retry_delay=5,
+                socket_timeout=5,
+            )
+
             connection = pika.BlockingConnection(params)
+
+            logger.info("[%s] Conectado correctamente a RabbitMQ", WORKER_ID)
             return connection
+
         except pika.exceptions.AMQPConnectionError:
             logger.warning(
-                "[%s] RabbitMQ no disponible, reintentando en 5s...", WORKER_ID
+                "[%s] RabbitMQ no disponible, reintentando en 5s...",
+                WORKER_ID,
             )
             time.sleep(5)
+
         except Exception:
-            logger.exception("[%s] Error inesperado conectando a RabbitMQ", WORKER_ID)
+            logger.exception(
+                "[%s] Error inesperado conectando a RabbitMQ",
+                WORKER_ID,
+            )
             time.sleep(5)
 
 
@@ -296,72 +310,100 @@ def heartbeat_loop():
 def main():
     global WORKER_ID
     WORKER_ID = f"cpu-{random.randint(1000, 9999)}"
-    connection = connect_rabbit()
-    channel = connection.channel()
-    channel.basic_qos(prefetch_count=1)
 
-    # -------- COMPETITIVO (cola exclusiva) --------
-    channel.exchange_declare(
-        exchange=EXCHANGE_COMPETITIVE,
-        exchange_type="fanout",
-        durable=True,
-    )
-
-    result = channel.queue_declare("", exclusive=True)
-    queue_competitive = result.method.queue
-
-    channel.queue_bind(
-        exchange=EXCHANGE_COMPETITIVE,
-        queue=queue_competitive,
-    )
-
-    # -------- COOPERATIVO (cola compartida) --------
-    channel.exchange_declare(
-        exchange=EXCHANGE_COOPERATIVE,
-        exchange_type="topic",
-        durable=True,
-    )
-
-    channel.queue_bind(
-        exchange=EXCHANGE_COOPERATIVE,
-        queue="queue.cpu",
-        routing_key="blocks.cpu",
-    )
-
-    # Consumimos de AMBOS
-    channel.basic_consume(
-        queue=queue_competitive,
-        on_message_callback=on_message_received,
-        auto_ack=False,
-    )
-
-    channel.basic_consume(
-        queue="queue.cpu",
-        on_message_callback=on_message_received,
-        auto_ack=False,
-    )
-
-    # Iniciamos heartbeat en hilo separado para no bloquear el consumo de mensajes
-    hb_thread = Thread(
-        target=heartbeat_loop,
-        daemon=True,
-        name="heartbeat-thread",
-    )
-    hb_thread.start()
-
-    logger.info("[%s] Heartbeat thread iniciado (name=%s)", WORKER_ID, hb_thread.name)
-
-    logger.info("[%s] Worker CPU listo y esperando bloques...", WORKER_ID)
-
-    try:
-        channel.start_consuming()
-    except KeyboardInterrupt:
-        logger.info("[%s] Worker detenido por usuario", WORKER_ID)
-
+    while True:
         try:
-            connection.close()
+            logger.info("[%s] Iniciando worker...", WORKER_ID)
+
+            connection = connect_rabbit()
+            channel = connection.channel()
+
+            channel.basic_qos(prefetch_count=1)
+
+            # -------- COMPETITIVO (cola exclusiva) --------
+            channel.exchange_declare(
+                exchange=EXCHANGE_COMPETITIVE,
+                exchange_type="fanout",
+                durable=True,
+            )
+
+            result = channel.queue_declare("", exclusive=True)
+            queue_competitive = result.method.queue
+
+            channel.queue_bind(
+                exchange=EXCHANGE_COMPETITIVE,
+                queue=queue_competitive,
+            )
+
+            # -------- COOPERATIVO (cola compartida) --------
+            channel.exchange_declare(
+                exchange=EXCHANGE_COOPERATIVE,
+                exchange_type="topic",
+                durable=True,
+            )
+
+            channel.queue_declare(queue="queue.cpu", durable=True)
+
+            channel.queue_bind(
+                exchange=EXCHANGE_COOPERATIVE,
+                queue="queue.cpu",
+                routing_key="blocks.cpu",
+            )
+
+            # Consumimos de ambas
+            channel.basic_consume(
+                queue=queue_competitive,
+                on_message_callback=on_message_received,
+                auto_ack=False,
+            )
+
+            channel.basic_consume(
+                queue="queue.cpu",
+                on_message_callback=on_message_received,
+                auto_ack=False,
+            )
+
+            # -------- Heartbeat thread --------
+            hb_thread = Thread(
+                target=heartbeat_loop,
+                daemon=True,
+                name="heartbeat-thread",
+            )
+            hb_thread.start()
+
+            logger.info(
+                "[%s] Heartbeat thread iniciado (name=%s)",
+                WORKER_ID,
+                hb_thread.name,
+            )
+
+            logger.info(
+                "[%s] Worker CPU listo y esperando bloques...",
+                WORKER_ID,
+            )
+
+            # 🔥 Esto bloquea hasta que se pierde conexión
+            channel.start_consuming()
+
+        except KeyboardInterrupt:
+            logger.info("[%s] Worker detenido por usuario", WORKER_ID)
+            try:
+                connection.close()
+            except Exception:
+                pass
+            break
+
         except Exception:
-            logger.exception("[%s] Error cerrando conexion RabbitMQ", WORKER_ID)
+            logger.exception(
+                "[%s] Conexión perdida o error inesperado. Reconectando en 5s...",
+                WORKER_ID,
+            )
+            try:
+                connection.close()
+            except Exception:
+                pass
+
+            time.sleep(5)
 
 
 if __name__ == "__main__":

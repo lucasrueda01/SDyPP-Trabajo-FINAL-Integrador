@@ -13,10 +13,6 @@ RABBIT_HOST = os.getenv("RABBIT_HOST")
 RABBIT_PORT = os.getenv("RABBIT_PORT", "5672")
 RABBIT_VHOST = os.getenv("RABBIT_VHOST", "")
 
-RABBIT_URL = (
-    f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}"
-    f"@{RABBIT_HOST}:{RABBIT_PORT}/{RABBIT_VHOST}"
-)
 # ampqp://user:password@host:port/
 
 # ======================
