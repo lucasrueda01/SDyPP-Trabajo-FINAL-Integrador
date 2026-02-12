@@ -211,12 +211,13 @@ def on_message_received(channel, method, _, body):
             mode = "COMPETITIVO"
 
         logger.info(
-            "[%s] Bloque %s | modo=%s | rango=[%d-%d]",
+            "[%s] Bloque %s | modo=%s | rango=[%d-%d] | prefijo=%s",
             WORKER_ID,
             block_id,
             mode,
             from_nonce,
             to_nonce,
+            prefijo,
         )
 
         resultado = ejecutar_minero(

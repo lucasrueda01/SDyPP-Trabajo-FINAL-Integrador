@@ -1,54 +1,38 @@
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: rabbitmq
-  namespace: blockchain-infra
-spec:
-  serviceName: rabbitmq
-  replicas: 2
-  selector:
-    matchLabels:
-      app: rabbitmq
-  template:
-    metadata:
-      labels:
-        app: rabbitmq
-    spec:
-      nodeSelector:
-        node-role: infra
-      containers:
-        - name: rabbitmq
-          image: rabbitmq:3-management
-          ports:
-            - containerPort: 5672
-            - containerPort: 15672
+containers:
+  - name: rabbitmq
+    image: rabbitmq:3-management
 
-          env:
-            - name: RABBITMQ_DEFAULT_USER
-              valueFrom:
-                secretKeyRef:
-                  name: rabbitmq-credentials
-                  key: RABBIT_USER
+    ports:
+      - containerPort: 5672
+      - containerPort: 15672
 
-            - name: RABBITMQ_DEFAULT_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: rabbitmq-credentials
-                  key: RABBIT_PASSWORD
+    env:
+      - name: RABBITMQ_DEFAULT_USER
+        valueFrom:
+          secretKeyRef:
+            name: rabbitmq-credentials
+            key: RABBIT_USER
 
-            - name: RABBITMQ_DEFAULT_VHOST
-              value: blockchain
+      - name: RABBITMQ_DEFAULT_PASS
+        valueFrom:
+          secretKeyRef:
+            name: rabbitmq-credentials
+            key: RABBIT_PASSWORD
 
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/rabbitmq
+      - name: RABBITMQ_DEFAULT_VHOST
+        value: blockchain
 
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        storageClassName: standard
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 2Gi
+      - name: RABBITMQ_VM_MEMORY_HIGH_WATERMARK
+        value: "0.8"
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+    volumeMounts:
+      - name: data
+        mountPath: /var/lib/rabbitmq
