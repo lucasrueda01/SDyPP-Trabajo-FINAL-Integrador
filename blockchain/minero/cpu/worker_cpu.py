@@ -1,5 +1,6 @@
 import json
 import hashlib
+from multiprocessing.dummy import connection
 from threading import Thread
 import random
 import requests
@@ -124,6 +125,10 @@ def ejecutar_minero(from_val: int, to_val: int, prefijo: str, hash_base: str):
 
     for nonce in range(from_val, to_val + 1):
         intentos += 1
+        
+        if intentos % 100000 == 0: # Para que rabbit no piense que el worker está colgado
+            connection.process_data_events()
+        
         nonce_str = str(nonce)
 
         hash_calculado = calculateHash(nonce_str + hash_base)
@@ -206,7 +211,8 @@ def on_message_received(channel, method, _, body):
             from_nonce,
             to_nonce,
         )
-
+        
+        connection.process_data_events()
         resultado = ejecutar_minero(
             from_nonce,
             to_nonce,
