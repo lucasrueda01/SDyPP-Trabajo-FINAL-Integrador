@@ -7,6 +7,11 @@ data "terraform_remote_state" "cluster" {
   }
 }
 
+output "debug_rabbit_ip" {
+  value = data.terraform_remote_state.cluster.outputs.rabbit_ip
+}
+
+
 resource "google_compute_instance" "worker_cpu" {
   count        = var.worker_cpu_count
   name         = "${var.cluster_name}-worker-cpu-${count.index}"
