@@ -1,238 +1,46 @@
-import hashlib
-import json
-import threading
-import sys
-import time
-import uuid
 import logging
+import sys
 from flask import Flask, jsonify, request
-import pika
-import redis
-from google.cloud import storage
 from prometheus_client import start_http_server
 import metrics
+import threading
 import config.settings as settings
-from google.api_core.exceptions import NotFound
+from consensus_service import procesar_resultado_worker
+
+from queue_client import encolar
+from redis_client import redisConnect
+from storage_client import bucketConnect
+from blockchain_service import validarTransaction
+from worker_loop import processPackages
 
 start_http_server(8000)
 
 app = Flask(__name__)
 
-# -----------------------
-# Logging
-# -----------------------
-LOG_LEVEL = logging.DEBUG if getattr(settings, "DEBUG", False) else logging.INFO
-
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=logging.INFO,
     format="[%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
+logging.getLogger("pika").setLevel(logging.WARNING)
+logging.getLogger("redis").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 logger = logging.getLogger("coordinator")
 
-logging.getLogger("pika").setLevel(logging.WARNING)
-logging.getLogger("redis").setLevel(logging.WARNING)
-logging.getLogger("google").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
+# Inicializaciones
+redisConnect()
+bucket = bucketConnect(settings.BUCKET_NAME)
+
+# Background thread
+threading.Thread(target=processPackages, args=(bucket,), daemon=True).start()
 
 
-# -----------------------
-# Redis
-# -----------------------
-def redisConnect():
-    try:
-        client = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=0,
-        )
-        client.ping()
-        logger.info("Conectado a Redis")
-        return client
-    except Exception:
-        logger.exception("Error conectando a Redis")
-        raise
-
-
-def get_redis():
-    global redisClient
-    try:
-        redisClient.ping()
-    except Exception:
-        logger.warning("Redis reconectando...")
-        redisClient = redisConnect()
-    return redisClient
-
-
-# -----------------------
-# RabbitMQ
-# -----------------------
-def queueConnect(retries=10, delay=3):
-    for i in range(retries):
-        try:
-            logger.info("Conectando a RabbitMQ (TX)...")
-            if settings.RABBIT_URL:
-                params = pika.URLParameters(settings.RABBIT_URL)
-            else:
-                params = pika.ConnectionParameters(
-                    host=settings.RABBIT_HOST,
-                    credentials=pika.PlainCredentials(
-                        settings.RABBIT_USER, settings.RABBIT_PASSWORD
-                    ),
-                    heartbeat=600,
-                    blocked_connection_timeout=300,
-                )
-
-            connection = pika.BlockingConnection(params)
-            channel = connection.channel()
-            channel.queue_declare(
-                "QueueTransactions", durable=True, arguments={"x-queue-type": "quorum"}
-            )  # Cola de transacciones
-            channel.queue_declare(
-                queue="pool_tasks", durable=True, arguments={"x-queue-type": "quorum"}
-            )  # Cola de bloques para minar
-            logger.info("Conectado a RabbitMQ")
-            return connection, channel
-
-        except pika.exceptions.AMQPConnectionError:
-            logger.warning("RabbitMQ no disponible, reintentando...")
-            time.sleep(delay)
-        except Exception:
-            logger.exception("Error inesperado conectando a RabbitMQ")
-            time.sleep(delay)
-
-    raise Exception("No se pudo conectar a RabbitMQ")
-
-
-# -----------------------
-# Pool Manager
-# -----------------------
-def publicar_a_pool_manager(block):
-    block_id = block["blockId"]
-    props = pika.BasicProperties(
-        delivery_mode=2,  # persistente
-        message_id=block_id,  # idempotencia
-        content_type="application/json",
-    )
-
-    channel.basic_publish(
-        exchange="",
-        routing_key="pool_tasks",
-        body=json.dumps(block),
-        properties=props,
-    )
-
-    logger.info("Bloque %s publicado en pool_tasks", block_id)
-
-
-# -----------------------
-# Helpers
-# -----------------------
-def encolar(transaction):
-    props = pika.BasicProperties(delivery_mode=2)
-    channel.basic_publish(
-        exchange="",
-        routing_key="QueueTransactions",
-        body=json.dumps(transaction),
-        properties=props,
-    )
-    logger.info("Transacción encolada")
-
-
-def validarTransaction(transaction):
-    required = ["origen", "destino", "monto"]
-    return all(k in transaction and transaction[k] for k in required)
-
-
-def calculateHash(data):
-    h = hashlib.md5()
-    h.update(data.encode("utf-8"))
-    return h.hexdigest()
-
-
-# -----------------------
-# Redis helpers
-# -----------------------
-def getUltimoBlock():
-    redisClient = get_redis()
-    raw = redisClient.lindex("blockchain", 0)
-    return json.loads(raw) if raw else None
-
-
-def existBlock(block_id):
-    redisClient = get_redis()
-    return redisClient.sismember("block_ids", block_id)
-
-
-def postBlock(block):
-    redisClient = get_redis()
-    pipe = redisClient.pipeline()
-    pipe.lpush("blockchain", json.dumps(block))
-    pipe.sadd("block_ids", block["blockId"])
-    pipe.execute()
-
-
-def release_claim(claim_key, worker_id):
-    redisClient = get_redis()
-    owner = redisClient.get(claim_key)
-    if owner and owner.decode() == worker_id:
-        redisClient.delete(claim_key)
-
-
-def gpus_vivas():
-    redisClient = get_redis()
-    count = 0
-    for key in redisClient.scan_iter("worker:*"):
-        data = redisClient.hgetall(key)
-        if not data:
-            continue
-        if data.get("type") == "gpu":
-            count += 1
-    return count
-
-
-# -----------------------
-# Bucket
-# -----------------------
-def bucketConnect(bucketName):
-    client = storage.Client()
-    logger.info("Conectado a Google Cloud Storage")
-    return client.bucket(bucketName)
-
-
-def subirBlock(bucket, block):
-    blob = bucket.blob(f"block_{block['blockId']}.json")
-    blob.upload_from_string(json.dumps(block), content_type="application/json")
-    logger.info("Bloque %s subido al bucket", block["blockId"])
-
-
-def descargarBlock(bucket, blockId):
-    blob = bucket.blob(f"block_{blockId}.json")
-    try:
-        return json.loads(blob.download_as_text())
-    except NotFound:
-        logging.warning(
-            f"Bloque {blockId} no existe al intentar leerlo (posible doble resolución)"
-        )
-        return None
-
-
-def borrarBlock(bucket, blockId):
-    blob = bucket.blob(f"block_{blockId}.json")
-    try:
-        blob.delete()
-        logging.info(f"Bloque {blockId} eliminado del bucket")
-    except NotFound:
-        logging.warning(f"Bloque {blockId} no se encontró en el bucket")
-
-
-# -----------------------
-# HTTP endpoints
-# -----------------------
 @app.route("/transaction", methods=["POST"])
 def addTransaction():
     tx = request.json
+
     if not validarTransaction(tx):
         return "Transacción inválida", 400
 
@@ -249,206 +57,9 @@ def status():
 @app.route("/solved_task", methods=["POST"])
 def receive_solved_task():
     data = request.get_json()
-    redisClient = get_redis()
-    if not data or not data.get("result"):
-        logger.info("Resultado invalido recibido: %s", data)
-        return jsonify({"message": "Resultado invalido"}), 202
+    response, status = procesar_resultado_worker(data, bucket)
+    return jsonify(response), status
 
-    block_id = data["blockId"]
-    worker_id = data.get("workerId", "unknown")
-    worker_type = data.get("type", "cpu")
-
-    status_key = f"block:{block_id}:status"
-    claim_key = f"block:{block_id}:claim"
-
-    # -----------------------
-    # 1) Idempotencia fuerte
-    # -----------------------
-    status = redisClient.get(status_key)
-    if status and status.decode() == "SEALED":
-        logger.info(
-            "Resultado tardío descartado de %s para bloque %s",
-            worker_id,
-            block_id,
-        )
-        metrics.record_task_result(
-            worker_type=worker_type,
-            accepted=False,
-        )
-        metrics.blocks_rejected_total.inc()
-
-        return jsonify({"message": "Bloque ya cerrado"}), 202
-
-    # -----------------------
-    # 2) Claim exclusivo (competencia)
-    # -----------------------
-    if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
-        metrics.blocks_rejected_total.inc()
-        metrics.record_task_result(
-            worker_type=worker_type,
-            accepted=False,
-        )
-        return jsonify({"message": "Bloque ya reclamado"}), 202
-
-    try:
-        # -----------------------
-        # 3) Descargar bloque
-        # -----------------------
-        block = descargarBlock(bucket, block_id)
-        if block is None:
-            redisClient.set(status_key, "SEALED")
-            release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
-            metrics.record_task_result(
-                worker_type=worker_type,
-                accepted=False,
-            )
-            return jsonify({"message": "Bloque ya cerrado"}), 202
-
-        # -----------------------
-        # 4) Validar hash
-        # -----------------------
-        hash_base = block["baseStringChain"] + block["blockchainContent"]
-        hash_calc = calculateHash(data["result"] + hash_base)
-
-        if hash_calc != data["hash"]:
-            release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
-            metrics.record_task_result(
-                worker_type=worker_type,
-                accepted=False,
-            )
-            return jsonify({"message": "Hash inválido"}), 202
-
-        # -----------------------
-        # 5) Verificar existencia
-        # -----------------------
-        if existBlock(block_id):
-            redisClient.set(status_key, "SEALED")
-            release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
-            metrics.record_task_result(
-                worker_type=worker_type,
-                accepted=False,
-            )
-            return jsonify({"message": "Bloque ya existe"}), 202
-
-        # -----------------------
-        # 6) Sellar bloque
-        # -----------------------
-        redisClient.set(status_key, "SEALED")
-
-        # -----------------------
-        # 7) Construir y persistir
-        # -----------------------
-        prev = getUltimoBlock()
-        newBlock = {
-            "blockId": block_id,
-            "hash": data["hash"],
-            "hashPrevio": prev["hash"] if prev else None,
-            "nonce": data["result"],
-            "prefijo": block["prefijo"],
-            "transactions": block["transactions"],
-            "timestamp": time.time(),
-            "baseStringChain": block["baseStringChain"],
-            "blockchainContent": calculateHash(block["baseStringChain"] + data["hash"]),
-        }
-
-        postBlock(newBlock)
-
-        # -----------------------
-        # 8) Borrar bloque temporal
-        # -----------------------
-        borrarBlock(bucket, block_id)
-
-        logger.info(
-            "Bloque %s aceptado. Ganador: %s",
-            block_id,
-            worker_id,
-        )
-        metrics.blocks_accepted_total.inc()
-        metrics.record_task_result(
-            worker_type=worker_type,
-            accepted=True,
-            processing_time=data.get("processingTime"),
-            hash_rate=data.get("hashRate"),
-        )
-
-        return jsonify({"message": "Bloque aceptado"}), 201
-
-    except Exception:
-        release_claim(claim_key, worker_id)
-        logger.exception(
-            "Error procesando resultado del worker %s para bloque %s",
-            worker_id,
-            block_id,
-        )
-        metrics.errors_total.inc()
-        return jsonify({"message": "Error interno"}), 500
-
-
-# -----------------------
-# Background loop
-# -----------------------
-def processPackages():
-    while True:
-        txs = []
-        metrics.gpus_alive.set(gpus_vivas())
-        metrics.update_uptime()
-
-        for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
-            method_frame, _, body = channel.basic_get(queue="QueueTransactions")
-            if not method_frame:
-                break
-            txs.append(json.loads(body))
-            channel.basic_ack(method_frame.delivery_tag)
-
-        if txs:
-            blockId = str(uuid.uuid4())
-            metrics.blocks_created_total.inc()
-            last = getUltimoBlock()
-
-            requested_difficulties = [
-                tx["requested_difficulty"] for tx in txs if "requested_difficulty" in tx
-            ]
-
-            if requested_difficulties:  # Si se pide explícitamente, usar la mayor
-                final_difficulty = max(requested_difficulties)
-
-            else:  # Si no, ajustar según GPUs vivas
-                gpus = gpus_vivas()
-                if gpus == 0:
-                    final_difficulty = settings.DIFFICULTY_LOW
-                else:
-                    final_difficulty = settings.DIFFICULTY_HIGH
-
-            prefijo = "0" * final_difficulty
-
-            block = {
-                "blockId": blockId,
-                "transactions": txs,
-                "prefijo": prefijo,
-                "baseStringChain": settings.BASE_STRING_CHAIN,
-                "blockchainContent": last["blockchainContent"] if last else "0",
-                "numMaxRandom": settings.MAX_RANDOM,
-            }
-
-            subirBlock(bucket, block)
-            publicar_a_pool_manager(block)
-
-        time.sleep(settings.PROCESSING_TIME)
-
-
-# -----------------------
-# Init
-# -----------------------
-logger.info("Coordinador iniciando")
-
-connection, channel = queueConnect()
-redisClient = redisConnect()
-bucket = bucketConnect(settings.BUCKET_NAME)
-
-threading.Thread(target=processPackages, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=settings.COORDINADOR_PORT)
