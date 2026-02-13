@@ -1,44 +1,66 @@
 #!/bin/bash
 set -e
 
-echo "Inicializando worker CPU..."
+echo "======================================"
+echo "Inicializando Worker CPU..."
+echo "======================================"
 
-# Leer metadata de GCE (si existen)
-RABBIT_HOST=$(curl -s -H "Metadata-Flavor: Google" \
-  http://metadata.google.internal/computeMetadata/v1/instance/attributes/RABBIT_HOST || true)
+# =========================================
+# 1️⃣ Resolver hosts (Terraform o Metadata)
+# =========================================
 
-COORDINADOR_HOST=$(curl -s -H "Metadata-Flavor: Google" \
-  http://metadata.google.internal/computeMetadata/v1/instance/attributes/COORDINADOR_HOST || true)
+# --- Si viene desde templatefile (workers base) ---
+INGRESS_IP="${ingress_ip}"
 
-POOL_MANAGER_HOST=$(curl -s -H "Metadata-Flavor: Google" \
-  http://metadata.google.internal/computeMetadata/v1/instance/attributes/POOL_MANAGER_HOST || true)
+if [ -n "$INGRESS_IP" ]; then
+  echo "Modo: Worker Base (Terraform)"
+  RABBIT_HOST="$INGRESS_IP"
+  COORDINADOR_HOST="$INGRESS_IP"
+  POOL_MANAGER_HOST="$INGRESS_IP"
+else
+  echo "Modo: Worker Dinámico (CPU Scaler)"
+  
+  RABBIT_HOST=$(curl -sf -H "Metadata-Flavor: Google" \
+    http://metadata.google.internal/computeMetadata/v1/instance/attributes/RABBIT_HOST || true)
 
-# Fallback a template terraform si no vienen por metadata
-if [[ -z "$RABBIT_HOST" ]]; then
-  RABBIT_HOST="${ingress_ip}"
-  COORDINADOR_HOST="${ingress_ip}"
-  POOL_MANAGER_HOST="${ingress_ip}"
+  COORDINADOR_HOST=$(curl -sf -H "Metadata-Flavor: Google" \
+    http://metadata.google.internal/computeMetadata/v1/instance/attributes/COORDINADOR_HOST || true)
+
+  POOL_MANAGER_HOST=$(curl -sf -H "Metadata-Flavor: Google" \
+    http://metadata.google.internal/computeMetadata/v1/instance/attributes/POOL_MANAGER_HOST || true)
 fi
 
-echo "RABBIT_HOST: $RABBIT_HOST"
-echo "COORDINADOR_HOST: $COORDINADOR_HOST"
-echo "POOL_MANAGER_HOST: $POOL_MANAGER_HOST"
+echo "RABBIT_HOST=$RABBIT_HOST"
+echo "COORDINADOR_HOST=$COORDINADOR_HOST"
+echo "POOL_MANAGER_HOST=$POOL_MANAGER_HOST"
 
+# Validación mínima
+if [ -z "$RABBIT_HOST" ] || [ -z "$COORDINADOR_HOST" ] || [ -z "$POOL_MANAGER_HOST" ]; then
+  echo "ERROR: No se pudieron resolver los hosts correctamente"
+  exit 1
+fi
 
-# Variables estáticas
-COORDINADOR_PORT="5000"
+# =========================================
+# 2️⃣ Variables estáticas
+# =========================================
+
+COORDINADOR_PORT="80"
+RABBIT_PORT="5672"
+POOL_MANAGER_PORT="80"
+
 RABBIT_USER="blockchain"
 RABBIT_PASSWORD="blockchain123"
-RABBIT_PORT="5672"
 RABBIT_VHOST="blockchain"
-POOL_MANAGER_PORT="6000"
+
 CPU_CAPACITY="10"
 
 HEARTBEAT_TTL="180"
 HEARTBEAT_INTERVAL="10"
 HEARTBEAT_TIMEOUT="8"
+
 TZ="America/Argentina/Buenos_Aires"
 
+# Exportar variables
 export COORDINADOR_HOST
 export COORDINADOR_PORT
 export RABBIT_HOST
@@ -59,13 +81,16 @@ echo "Variables configuradas correctamente"
 # =========================================
 # 3️⃣ Instalar Docker
 # =========================================
-apt-get update
+
+echo "Instalando Docker..."
+apt-get update -y
 apt-get install -y docker.io
 systemctl enable --now docker
 
 # =========================================
 # 4️⃣ Ejecutar contenedor
 # =========================================
+
 docker rm -f worker_cpu || true
 
 docker run -d \
@@ -87,4 +112,6 @@ docker run -d \
   -e TZ \
   ghcr.io/lucasrueda01/worker-cpu:latest
 
+echo "======================================"
 echo "Worker CPU iniciado correctamente"
+echo "======================================"
