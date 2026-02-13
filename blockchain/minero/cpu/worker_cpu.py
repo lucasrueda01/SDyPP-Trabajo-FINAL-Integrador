@@ -30,13 +30,13 @@ EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
 EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
 QUEUE_COOPERATIVE = "blocks_queue"
 
-hostCoordinador = settings.COORDINADOR_HOST
-puertoCoordinador = settings.COORDINADOR_PORT
+hostCoordinador = settings.COORDINADOR_HOST + "/coordinator"
+puertoCoordinador = settings.COORDINADOR_PORT # Sin usar
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
-pool_manager_host = settings.POOL_MANAGER_HOST
-pool_manager_port = settings.POOL_MANAGER_PORT
+pool_manager_host = settings.POOL_MANAGER_HOST + "/pool"
+pool_manager_port = settings.POOL_MANAGER_PORT # Sin usar
 
 
 def calculateHash(data: str) -> str:
@@ -46,7 +46,7 @@ def calculateHash(data: str) -> str:
 
 
 def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | None:
-    url = f"http://{hostCoordinador}:{puertoCoordinador}/solved_task"
+    url = f"http://{hostCoordinador}/solved_task"
     backoff = 1
     for i in range(retries + 1):
         try:
@@ -301,7 +301,7 @@ def on_message_received(channel, method, _, body):
 
 
 def heartbeat_loop():
-    url = f"http://{pool_manager_host}:{pool_manager_port}/heartbeat"
+    url = f"http://{pool_manager_host}/heartbeat"
 
     payload = {
         "id": WORKER_ID,

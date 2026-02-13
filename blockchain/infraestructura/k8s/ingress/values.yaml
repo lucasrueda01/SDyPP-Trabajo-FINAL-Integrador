@@ -1,0 +1,13 @@
+controller:
+  extraArgs:
+    tcp-services-configmap: "ingress-nginx/tcp-services"
+
+  service:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+    loadBalancerIP: ${INGRESS_IP}
+    extraPorts:
+      - name: amqp
+        port: 5672
+        protocol: TCP
+        targetPort: 5672

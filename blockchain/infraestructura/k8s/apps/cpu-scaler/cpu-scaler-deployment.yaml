@@ -46,12 +46,24 @@ spec:
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
+
             - name: RABBIT_EXTERNAL_HOST
-              value: ${RABBIT_EXTERNAL_HOST}
+              valueFrom:
+                configMapKeyRef:
+                  name: blockchain-ingress-config
+                  key: INGRESS_HOST
+
             - name: COORDINADOR_EXTERNAL_HOST
-              value: ${COORDINADOR_EXTERNAL_HOST}
+              valueFrom:
+                configMapKeyRef:
+                  name: blockchain-ingress-config
+                  key: INGRESS_HOST
+
             - name: POOL_MANAGER_EXTERNAL_HOST
-              value: ${POOL_MANAGER_EXTERNAL_HOST}
+              valueFrom:
+                configMapKeyRef:
+                  name: blockchain-ingress-config
+                  key: INGRESS_HOST
 
           envFrom:
             - configMapRef:
@@ -61,8 +73,3 @@ spec:
             - name: worker-cpu-script
               mountPath: /scripts/worker_cpu_startup.sh
               subPath: worker_cpu_startup.sh
-
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            allowPrivilegeEscalation: false

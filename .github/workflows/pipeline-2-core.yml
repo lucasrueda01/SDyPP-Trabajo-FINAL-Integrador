@@ -12,7 +12,7 @@ env:
 
 jobs:
   deploy-core:
-    name: Deploy Core Services (Redis + RabbitMQ)
+    name: Deploy Core Services (Ingress + Redis + RabbitMQ)
     runs-on: ubuntu-latest
 
     steps:
@@ -31,18 +31,17 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🏗️ Instalar Terraform (NECESARIO para leer outputs)
+      # 🏗️ Terraform para leer IP reservada del ingress
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      # 🔄 Leer IP pública de Rabbit desde Terraform
       - name: Get Terraform outputs
         run: |
           cd $TF_WORKING_DIR
           terraform init -input=false
-          echo "RABBIT_IP=$(terraform output -raw rabbit_ip)" >> $GITHUB_ENV
+          echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
       # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
@@ -51,47 +50,62 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🐇 Instalar RabbitMQ Cluster Operator
-      - name: Install RabbitMQ Cluster Operator
+      # ===============================
+      # 1️⃣ Instalar Ingress NGINX
+      # ===============================
+      - name: Install Ingress Controller
         run: |
-          kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
 
-      # ⏳ Esperar Operator
-      - name: Wait for RabbitMQ Operator
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --set controller.service.loadBalancerIP=$INGRESS_IP \
+            --set controller.service.externalTrafficPolicy=Local \
+            --set controller.extraArgs.tcp-services-configmap=ingress-nginx/tcp-services
+
+      # ===============================
+      # 2️⃣ Crear ConfigMap TCP para Rabbit
+      # ===============================
+      - name: Create TCP ConfigMap for RabbitMQ
         run: |
-          kubectl wait --for=condition=Available deployment/rabbitmq-cluster-operator \
-            -n rabbitmq-system \
-            --timeout=300s
+          kubectl create configmap tcp-services \
+            --namespace ingress-nginx \
+            --from-literal=5672=blockchain-infra/rabbitmq:5672 \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      # 🚀 Aplicar todo el core (excepto service externo)
+      # ===============================
+      # 3️⃣ Aplicar Core (Redis + RabbitMQ Cluster)
+      # ===============================
       - name: Apply Core Manifests
         run: |
           kubectl apply -k $K8S_CORE_DIR
 
-      # 🌍 Aplicar Service externo con IP fija
-      - name: Apply Rabbit External Service
-        run: |
-          cd $K8S_CORE_DIR/rabbitmq
-          envsubst < rabbitmq-service-external.yaml | kubectl apply -f -
-
-      # ⏳ Esperar Redis
+      # ===============================
+      # 4️⃣ Esperar Redis
+      # ===============================
       - name: Wait for Redis
         run: |
           kubectl rollout status statefulset/redis -n blockchain-infra --timeout=300s
 
-      # ⏳ Esperar RabbitMQ Cluster
+      # ===============================
+      # 5️⃣ Esperar RabbitMQ Cluster
+      # ===============================
       - name: Wait for RabbitMQ Cluster
         run: |
-          kubectl wait --for=jsonpath='{.status.conditions[?(@.type=="AllReplicasReady")].status}'=True \
+          kubectl wait --for=condition=AllReplicasReady \
             rabbitmqcluster/rabbitmq \
             -n blockchain-infra \
             --timeout=300s
 
-      # 🔎 Verificación final
+      # ===============================
+      # 6️⃣ Verificación Final
+      # ===============================
       - name: Verify Services
         run: |
-          kubectl get svc -n blockchain-infra
+          kubectl get svc -A
 
       - name: Verify Pods
         run: |
-          kubectl get pods -n blockchain-infra
+          kubectl get pods -A

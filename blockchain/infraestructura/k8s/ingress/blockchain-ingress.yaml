@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blockchain-ingress
+  namespace: blockchain-apps
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /coordinator
+            pathType: Prefix
+            backend:
+              service:
+                name: coordinator
+                port:
+                  number: 5000
+
+    - http:
+        paths:
+          - path: /pool
+            pathType: Prefix
+            backend:
+              service:
+                name: pool-manager
+                port:
+                  number: 6000

@@ -3,13 +3,13 @@ set -e
 
 echo "Inicializando worker CPU..."
 
-# =========================================
-# 2️⃣ Obtener variables (metadata o fallback)
-# =========================================
+RABBIT_HOST="${ingress_ip}"
+COORDINADOR_HOST="${ingress_ip}"
+POOL_MANAGER_HOST="${ingress_ip}"
 
-RABBIT_HOST="${rabbit_host}"
-COORDINADOR_HOST="${coordinator_host}"
-POOL_MANAGER_HOST="${pool_manager_host}"
+echo RABBIT_HOST: $RABBIT_HOST
+echo COORDINADOR_HOST: $COORDINADOR_HOST  
+echo POOL_MANAGER_HOST: $POOL_MANAGER_HOST
 
 # Variables estáticas
 COORDINADOR_PORT="5000"

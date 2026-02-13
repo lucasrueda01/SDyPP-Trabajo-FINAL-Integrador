@@ -4,101 +4,35 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   CLUSTER_NAME: cluster-blockchain
   CLUSTER_REGION: us-central1
-  K8S_APPS_DIR: blockchain/infraestructura/k8s/apps
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
+  K8S_APPS_DIR: blockchain/infraestructura/k8s/apps
+  K8S_INGRESS_DIR: blockchain/infraestructura/k8s/ingress
 
 jobs:
-  # ==========================================
-  # 1️⃣ BUILD DE SERVICIOS
-  # ==========================================
-  build-services:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        service:
-          - name: coordinator
-            path: blockchain/coordinador
-            image: blockchain-coordinator
-          - name: cpu-scaler
-            path: blockchain/cpu-scaler
-            image: blockchain-cpu-scaler
-          - name: pool-manager
-            path: blockchain/pool_manager
-            image: blockchain-pool-manager
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build & Push
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.service.path }}
-          push: true
-          no-cache: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
-
-  # ==========================================
-  # 2️⃣ BUILD WORKER CPU
-  # ==========================================
-  build-worker:
+  deploy-apps:
+    name: Deploy Application Layer (Coordinator + Pool Manager + CPU Scaler + Ingress)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build & Push worker-cpu
-        uses: docker/build-push-action@v5
-        with:
-          context: blockchain/minero/cpu
-          push: true
-          no-cache: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/worker-cpu:latest
-            ghcr.io/${{ github.repository_owner }}/worker-cpu:sha-${{ github.sha }}-${{ github.run_number }}
-
-  # ==========================================
-  # 3️⃣ DEPLOY APPS
-  # ==========================================
-  deploy:
-    needs:
-      - build-services
-      - build-worker
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       # 🔐 Auth GCP
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🔧 Terraform para leer outputs
+      # 🏗️ Terraform para obtener IP del ingress
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -108,41 +42,66 @@ jobs:
         run: |
           cd $TF_WORKING_DIR
           terraform init -input=false
-          echo "COORDINADOR_EXTERNAL_HOST=$(terraform output -raw coordinator_ip)" >> $GITHUB_ENV
-          echo "POOL_MANAGER_EXTERNAL_HOST=$(terraform output -raw pool_manager_ip)" >> $GITHUB_ENV
-          echo "RABBIT_EXTERNAL_HOST=$(terraform output -raw rabbit_ip)" >> $GITHUB_ENV
+          echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
-      # 🎯 Obtener kubeconfig
+      - name: Create / Update Ingress ConfigMap
+        run: |
+          kubectl create configmap blockchain-ingress-config \
+            --from-literal=INGRESS_HOST=${INGRESS_IP} \
+            -n blockchain-apps \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # 🎯 Credenciales cluster
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
-      # 🧬 Setear imágenes dinámicas
-      - name: Set image tags with Kustomize
+      # ====================================
+      # 1️⃣ Aplicar Apps (Deployments + Services)
+      # ====================================
+      - name: Apply Apps Manifests
         run: |
-          cd $K8S_APPS_DIR
-          kustomize edit set image \
-            ghcr.io/${{ github.repository_owner }}/blockchain-coordinator=ghcr.io/${{ github.repository_owner }}/blockchain-coordinator:sha-${{ github.sha }}-${{ github.run_number }} \
-            ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler=ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler:sha-${{ github.sha }}-${{ github.run_number }} \
-            ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
+          kubectl apply -k $K8S_APPS_DIR
 
-      # 🚀 Deploy con envsubst (inyecta IPs externas)
-      - name: Deploy Apps
+      # ====================================
+      # 2️⃣ Aplicar Ingress
+      # ====================================
+      - name: Apply Ingress
         run: |
-          cd $K8S_APPS_DIR
-          kustomize build . | envsubst | kubectl apply -f -
+          kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
 
-      # 🔄 Esperar rollouts
-      - name: Wait for rollouts
+      - name: Restart CPU Scaler
+        run: |
+          kubectl rollout restart deployment/cpu-scaler -n blockchain-infra
+
+      # ====================================
+      # 3️⃣ Esperar Deployments
+      # ====================================
+      - name: Wait for Coordinator
         run: |
           kubectl rollout status deployment/coordinator -n blockchain-apps --timeout=300s
+
+      - name: Wait for Pool Manager
+        run: |
           kubectl rollout status deployment/pool-manager -n blockchain-apps --timeout=300s
+
+      - name: Wait for CPU Scaler
+        run: |
           kubectl rollout status deployment/cpu-scaler -n blockchain-infra --timeout=300s
 
-      # 🔍 Verificación
-      - name: Verify pods
+      # ====================================
+      # 4️⃣ Verificación Final
+      # ====================================
+      - name: Verify Apps
         run: |
-          kubectl get pods -n blockchain-apps
-          kubectl get pods -n blockchain-infra
+          kubectl get svc -n blockchain-apps
+
+      - name: Verify Infra
+        run: |
+          kubectl get svc -n blockchain-infra
+
+      - name: Verify Ingress
+        run: |
+          kubectl get ingress -A
