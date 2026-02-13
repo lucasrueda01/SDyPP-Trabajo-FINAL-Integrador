@@ -116,7 +116,7 @@ def create_cpu_worker():
                 compute_v1.Items(
                     key="POOL_MANAGER_HOST",
                     value=POOL_EXTERNAL_HOST,
-                )
+                ),
             ]
         ),
         tags=compute_v1.Tags(items=CPU_TAGS),

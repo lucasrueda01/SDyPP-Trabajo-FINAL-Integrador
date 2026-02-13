@@ -3,9 +3,21 @@ set -e
 
 echo "Inicializando worker CPU..."
 
-RABBIT_HOST="${ingress_ip}"
-COORDINADOR_HOST="${ingress_ip}"
-POOL_MANAGER_HOST="${ingress_ip}"
+# Si vienen variables por metadata (cpu-scaler), usarlas
+if [[ -n "$RABBIT_HOST" ]]; then
+  echo "Usando metadata del cpu-scaler"
+else
+  # Si no, usar la variable del template terraform
+  RABBIT_HOST="${ingress_ip}"
+  COORDINADOR_HOST="${ingress_ip}"
+  POOL_MANAGER_HOST="${ingress_ip}"
+  echo "Usando ingress_ip del template Terraform"
+fi
+
+echo "RABBIT_HOST: $RABBIT_HOST"
+echo "COORDINADOR_HOST: $COORDINADOR_HOST"
+echo "POOL_MANAGER_HOST: $POOL_MANAGER_HOST"
+
 
 echo RABBIT_HOST: $RABBIT_HOST
 echo COORDINADOR_HOST: $COORDINADOR_HOST  
