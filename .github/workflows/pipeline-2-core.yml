@@ -96,11 +96,15 @@ jobs:
             -n ingress-nginx --timeout=300s
 
       # ===============================
-      # 3️⃣ Aplicar Ingress de Apps
+      # 3️⃣ Aplicar Ingress
       # ===============================
-      - name: Apply Blockchain Ingress
+      - name: Apply App Ingress
         run: |
-          kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
+          envsubst < $K8S_INGRESS_DIR/blockchain-ingress.yaml | kubectl apply -f -
+
+      - name: Apply Grafana Ingress
+        run: |
+          envsubst < $K8S_MONITORING_DIR/grafana-ingress.yaml | kubectl apply -f -
 
       # ====================================
       # 2️⃣ Monitoring
@@ -151,7 +155,6 @@ jobs:
           kubectl wait --for=condition=Available deployment/kube-prometheus-stack-grafana \
                 -n monitoring --timeout=300s
 
-
       # ====================================
       # 3️⃣ Ingress de Grafana
       # ====================================
@@ -174,3 +177,25 @@ jobs:
       - name: Verify NGINX IP
         run: |
           kubectl get svc -n ingress-nginx
+
+      # ====================================
+      # 🌐 Información de acceso
+      # ====================================
+      - name: Print Access URLs
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "Deployment completado correctamente"
+          echo ""
+          echo "Grafana:"
+          echo "   http://${INGRESS_IP}.nip.io/grafana"
+          echo ""
+          echo "Coordinador:"
+          echo "   http://${INGRESS_IP}.nip.io/coordinator"
+          echo ""
+          echo "Pool Manager:"
+          echo "   http://${INGRESS_IP}.nip.io/pool"
+          echo ""
+          echo "RabbitMQ (AMQP TCP):"
+          echo "   ${INGRESS_IP}:5672"
+          echo "=========================================="
