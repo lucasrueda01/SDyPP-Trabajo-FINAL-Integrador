@@ -145,6 +145,13 @@ jobs:
             -n monitoring --timeout=300s
 
       # ====================================
+      # 3️⃣ Ingress de Grafana
+      # ====================================
+      - name: Apply Grafana Ingress
+        run: |
+          kubectl apply -f $K8S_MONITORING_DIR/grafana-ingress.yaml
+
+      # ====================================
       # 4️⃣ Verificación final
       # ====================================
       - name: Verify Core

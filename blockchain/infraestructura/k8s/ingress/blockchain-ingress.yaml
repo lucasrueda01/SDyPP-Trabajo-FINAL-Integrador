@@ -26,11 +26,4 @@ spec:
             name: pool-manager
             port:
               number: 6000
-      - path: /grafana
-        pathType: Prefix
-        backend:
-          service:
-            name: kube-prometheus-stack-grafana
-            port:
-              number: 80
 
