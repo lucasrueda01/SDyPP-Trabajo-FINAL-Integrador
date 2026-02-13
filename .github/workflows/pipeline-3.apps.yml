@@ -58,7 +58,7 @@ jobs:
         run: |
           kubectl create configmap blockchain-ingress-config \
             --from-literal=INGRESS_HOST=${INGRESS_IP} \
-            -n blockchain-apps \
+            -n blockchain-infra \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
