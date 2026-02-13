@@ -90,6 +90,11 @@ jobs:
           kubectl wait --for=condition=AllReplicasReady rabbitmqcluster/rabbitmq \
             -n blockchain-infra --timeout=300s
 
+      - name: Wait for Ingress Controller
+        run: |
+          kubectl rollout status deployment/ingress-nginx-controller \
+            -n ingress-nginx --timeout=300s
+
       # ===============================
       # 3️⃣ Aplicar Ingress de Apps
       # ===============================
