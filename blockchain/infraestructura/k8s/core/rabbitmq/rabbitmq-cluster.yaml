@@ -4,7 +4,7 @@ metadata:
   name: rabbitmq
   namespace: blockchain-infra
 spec:
-  replicas: 2
+  replicas: 3   # 👈 si vas a quorum real
 
   resources:
     requests:
@@ -22,7 +22,22 @@ spec:
     additionalConfig: |
       cluster_partition_handling = autoheal
       queue_master_locator = min-masters
-
       default_user = blockchain
       default_pass = blockchain123
       default_vhost = blockchain
+
+  override:
+    statefulSet:
+      spec:
+        template:
+          spec:
+            affinity:
+              podAntiAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  - labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - rabbitmq
+                    topologyKey: "kubernetes.io/hostname"

@@ -2,7 +2,7 @@ resource "google_container_node_pool" "infra" {
   name     = "${var.cluster_name}-infra-pool"
   cluster = google_container_cluster.primary.name
   location = var.region
-  initial_node_count = 1
+  initial_node_count = var.infra_initial_nodes
 
   node_config {
     machine_type = var.infra_machine_type
@@ -20,7 +20,7 @@ resource "google_container_node_pool" "infra" {
   }
 
   autoscaling {
-    min_node_count = 1
-    max_node_count = 2
+    min_node_count = var.infra_min_nodes
+    max_node_count = var.infra_max_nodes
   }
 }

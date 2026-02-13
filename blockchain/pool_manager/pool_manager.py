@@ -35,8 +35,8 @@ def heartbeat():
     metrics.update_uptime()
     try:
         redis_client.ping()
-    except Exception:
-        logger.warning("Redis reconectando...")
+    except Exception as e:
+        logger.warning("Error al conectar con Redis: %s. Reconectando...", e)
         redis_client = redis_connect()
         
     data = request.get_json()
