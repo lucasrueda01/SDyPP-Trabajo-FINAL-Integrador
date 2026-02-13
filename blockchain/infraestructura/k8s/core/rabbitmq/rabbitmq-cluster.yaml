@@ -4,7 +4,7 @@ metadata:
   name: rabbitmq
   namespace: blockchain-infra
 spec:
-  replicas: 3   # 👈 si vas a quorum real
+  replicas: 3
 
   resources:
     requests:
@@ -27,17 +27,26 @@ spec:
       default_vhost = blockchain
 
   override:
-    statefulSet:
-      spec:
-        template:
-          spec:
-            affinity:
-              podAntiAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  - labelSelector:
-                      matchExpressions:
-                        - key: app.kubernetes.io/name
-                          operator: In
-                          values:
-                            - rabbitmq
-                    topologyKey: "kubernetes.io/hostname"
+  statefulSet:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: rabbitmq
+              resources:
+                requests:
+                  cpu: "250m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values:
+                          - rabbitmq
+                  topologyKey: "kubernetes.io/hostname"
