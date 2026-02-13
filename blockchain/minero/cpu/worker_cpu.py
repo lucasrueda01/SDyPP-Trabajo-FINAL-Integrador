@@ -31,12 +31,18 @@ EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
 QUEUE_COOPERATIVE = "blocks_queue"
 
 hostCoordinador = settings.COORDINADOR_HOST + ".nip.io/coordinator"
-puertoCoordinador = settings.COORDINADOR_PORT # Sin usar
+puertoCoordinador = settings.COORDINADOR_PORT  # Sin usar
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
 pool_manager_host = settings.POOL_MANAGER_HOST + ".nip.io/pool"
-pool_manager_port = settings.POOL_MANAGER_PORT # Sin usar
+pool_manager_port = settings.POOL_MANAGER_PORT  # Sin usar
+logger.info(
+    "Configuración del worker CPU: coordinador=%s, rabbit=%s, pool_manager=%s",
+    hostCoordinador,
+    hostRabbit,
+    pool_manager_host,
+)
 
 
 def calculateHash(data: str) -> str:
@@ -99,7 +105,12 @@ def connect_rabbit():
 
             connection = pika.BlockingConnection(params)
 
-            logger.info("[%s] Conectado correctamente a RabbitMQ con %s:%s", WORKER_ID, params.host, params.port)
+            logger.info(
+                "[%s] Conectado correctamente a RabbitMQ con %s:%s",
+                WORKER_ID,
+                params.host,
+                params.port,
+            )
             logger.debug("[%s] Parámetros de conexión: %s", WORKER_ID, params)
             return connection
 
@@ -342,7 +353,9 @@ def main():
                 durable=True,
             )
 
-            result = channel.queue_declare("", exclusive=True, arguments={"x-queue-type": "classic"})
+            result = channel.queue_declare(
+                "", exclusive=True, arguments={"x-queue-type": "classic"}
+            )
             queue_competitive = result.method.queue
 
             channel.queue_bind(

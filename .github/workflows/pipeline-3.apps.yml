@@ -101,6 +101,11 @@ jobs:
           cd $K8S_APPS_DIR
           kustomize build . | envsubst | kubectl apply -f -
 
+      # 🔄 Restart CPU Scaler
+      - name: Restart CPU Scaler
+        run: |
+          kubectl rollout restart deployment/cpu-scaler -n blockchain-infra
+
       # ====================================
       # Esperar rollouts
       # ====================================
