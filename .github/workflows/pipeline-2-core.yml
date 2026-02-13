@@ -178,24 +178,9 @@ jobs:
         run: |
           kubectl get svc -n ingress-nginx
 
-      # ====================================
-      # 🌐 Información de acceso
-      # ====================================
-      - name: Print Access URLs
+      # 🔍 Output final
+      - name: Show access URLs
         run: |
-          echo ""
-          echo "=========================================="
-          echo "Deployment completado correctamente"
-          echo ""
-          echo "Grafana:"
-          echo "   http://${INGRESS_IP}.nip.io/grafana"
-          echo ""
-          echo "Coordinador:"
-          echo "   http://${INGRESS_IP}.nip.io/coordinator"
-          echo ""
-          echo "Pool Manager:"
-          echo "   http://${INGRESS_IP}.nip.io/pool"
-          echo ""
-          echo "RabbitMQ (AMQP TCP):"
-          echo "   ${INGRESS_IP}:5672"
-          echo "=========================================="
+          echo "Coordinator: http://coordinator.${INGRESS_IP}.nip.io"
+          echo "Pool Manager: http://pool.${INGRESS_IP}.nip.io"
+          echo "Grafana: http://grafana.${INGRESS_IP}.nip.io
