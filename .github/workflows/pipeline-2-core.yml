@@ -148,8 +148,9 @@ jobs:
       # ⏳ Esperar Grafana
       - name: Wait for Grafana
         run: |
-          kubectl rollout status deployment/kube-prometheus-stack-grafana \
-            -n monitoring --timeout=300s
+          kubectl wait --for=condition=Available deployment/kube-prometheus-stack-grafana \
+                -n monitoring --timeout=300s
+
 
       # ====================================
       # 3️⃣ Ingress de Grafana
