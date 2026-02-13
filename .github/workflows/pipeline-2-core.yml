@@ -124,7 +124,7 @@ jobs:
               -n monitoring \
               --create-namespace \
               --set grafana.service.type=ClusterIP \
-              --set grafana.env.GF_SERVER_ROOT_URL="%(protocol)s://%(domain)s/grafana" \
+              --set grafana.env.GF_SERVER_ROOT_URL="http://${INGRESS_IP}/grafana" \
               --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=true
 
 
