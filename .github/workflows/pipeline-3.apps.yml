@@ -9,7 +9,6 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
   K8S_APPS_DIR: blockchain/infraestructura/k8s/apps
-  K8S_INGRESS_DIR: blockchain/infraestructura/k8s/ingress
 
 jobs:
 
@@ -75,17 +74,6 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🔧 Terraform para leer IP del Ingress
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-
-      - name: Get Terraform outputs
-        run: |
-          cd $TF_WORKING_DIR
-          terraform init -input=false
-          echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
       # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
@@ -93,16 +81,6 @@ jobs:
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
-
-      # ====================================
-      # Crear ConfigMap con IP del Ingress
-      # ====================================
-      - name: Create / Update Ingress ConfigMap
-        run: |
-          kubectl create configmap blockchain-ingress-config \
-            --from-literal=INGRESS_HOST=${INGRESS_IP} \
-            -n blockchain-infra \
-            --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
       # Setear imágenes dinámicas (SHA)
@@ -122,13 +100,6 @@ jobs:
         run: |
           cd $K8S_APPS_DIR
           kustomize build . | envsubst | kubectl apply -f -
-
-      # ====================================
-      # Deploy Ingress
-      # ====================================
-      - name: Apply Ingress
-        run: |
-          kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
 
       # ====================================
       # Esperar rollouts

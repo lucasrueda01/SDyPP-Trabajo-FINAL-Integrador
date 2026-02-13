@@ -9,6 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
   K8S_CORE_DIR: blockchain/infraestructura/k8s/core
+  K8S_INGRESS_DIR: blockchain/infraestructura/k8s/ingress
 
 jobs:
   deploy-core:
@@ -50,6 +51,16 @@ jobs:
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
 
+      # ====================================
+      # Crear ConfigMap con IP del Ingress
+      # ====================================
+      - name: Create / Update Ingress ConfigMap
+        run: |
+          kubectl create configmap blockchain-ingress-config \
+            --from-literal=INGRESS_HOST=${INGRESS_IP} \
+            -n blockchain-infra \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       # ===============================
       # 1️⃣ Instalar Ingress NGINX
       # ===============================
@@ -74,6 +85,13 @@ jobs:
             --namespace ingress-nginx \
             --from-literal=5672=blockchain-infra/rabbitmq:5672 \
             --dry-run=client -o yaml | kubectl apply -f -
+
+      # ====================================
+      # Deploy Ingress
+      # ====================================
+      - name: Apply Ingress
+        run: |
+          kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
 
       # ===============================
       # 3️⃣ Aplicar Core (Redis + RabbitMQ Cluster)
