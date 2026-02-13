@@ -183,4 +183,4 @@ jobs:
         run: |
           echo "Coordinator: http://coordinator.${INGRESS_IP}.nip.io"
           echo "Pool Manager: http://pool.${INGRESS_IP}.nip.io"
-          echo "Grafana: http://grafana.${INGRESS_IP}.nip.io
+          echo "Grafana: http://grafana.${INGRESS_IP}.nip.io"
