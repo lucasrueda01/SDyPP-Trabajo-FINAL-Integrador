@@ -59,7 +59,7 @@ jobs:
           kubectl create configmap blockchain-ingress-config \
             --from-literal=INGRESS_HOST=${INGRESS_IP} \
             -n blockchain-apps \
-            --dry-run=client -o yaml | kubectl apply -f
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
       # 1️⃣ Aplicar Apps (Deployments + Services)
