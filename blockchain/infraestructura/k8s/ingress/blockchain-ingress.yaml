@@ -3,25 +3,26 @@ kind: Ingress
 metadata:
   name: blockchain-ingress
   namespace: blockchain-apps
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+
 spec:
   ingressClassName: nginx
   rules:
-    - http:
-        paths:
-          - path: /coordinator
-            pathType: Prefix
-            backend:
-              service:
-                name: coordinator
-                port:
-                  number: 5000
+  - http:
+      paths:
+      - path: /coordinator(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: coordinator
+            port:
+              number: 5000
 
-    - http:
-        paths:
-          - path: /pool
-            pathType: Prefix
-            backend:
-              service:
-                name: pool-manager
-                port:
-                  number: 6000
+      - path: /pool(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: pool-manager
+            port:
+              number: 6000

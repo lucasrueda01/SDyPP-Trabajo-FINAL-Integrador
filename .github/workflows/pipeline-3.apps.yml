@@ -12,27 +12,70 @@ env:
   K8S_INGRESS_DIR: blockchain/infraestructura/k8s/ingress
 
 jobs:
-  deploy-apps:
-    name: Deploy Application Layer (Coordinator + Pool Manager + CPU Scaler + Ingress)
+
+  # ==========================================
+  # 1️⃣ BUILD SERVICIOS + WORKER
+  # ==========================================
+  build-images:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - name: coordinator
+            path: blockchain/coordinador
+            image: blockchain-coordinator
+          - name: cpu-scaler
+            path: blockchain/cpu-scaler
+            image: blockchain-cpu-scaler
+          - name: pool-manager
+            path: blockchain/pool_manager
+            image: blockchain-pool-manager
+          - name: worker-cpu
+            path: blockchain/minero/cpu
+            image: worker-cpu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.path }}
+          push: true
+          no-cache: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.image }}:sha-${{ github.sha }}-${{ github.run_number }}
+
+  # ==========================================
+  # 2️⃣ DEPLOY
+  # ==========================================
+  deploy:
+    needs: build-images
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       # 🔐 Auth GCP
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🏗️ Terraform para obtener IP del ingress
+      # 🔧 Terraform para leer IP del Ingress
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -44,7 +87,7 @@ jobs:
           terraform init -input=false
           echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
-      # 🎯 Credenciales cluster
+      # 🎯 Obtener kubeconfig
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
@@ -62,49 +105,45 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
-      # 1️⃣ Aplicar Apps (Deployments + Services)
+      # Setear imágenes dinámicas (SHA)
       # ====================================
-      - name: Apply Apps Manifests
+      - name: Set image tags with Kustomize
         run: |
-          kubectl apply -k $K8S_APPS_DIR
+          cd $K8S_APPS_DIR
+          kustomize edit set image \
+            ghcr.io/${{ github.repository_owner }}/blockchain-coordinator=ghcr.io/${{ github.repository_owner }}/blockchain-coordinator:sha-${{ github.sha }}-${{ github.run_number }} \
+            ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler=ghcr.io/${{ github.repository_owner }}/blockchain-cpu-scaler:sha-${{ github.sha }}-${{ github.run_number }} \
+            ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager=ghcr.io/${{ github.repository_owner }}/blockchain-pool-manager:sha-${{ github.sha }}-${{ github.run_number }}
 
       # ====================================
-      # 2️⃣ Aplicar Ingress
+      # Deploy Apps
+      # ====================================
+      - name: Deploy Apps
+        run: |
+          cd $K8S_APPS_DIR
+          kustomize build . | envsubst | kubectl apply -f -
+
+      # ====================================
+      # Deploy Ingress
       # ====================================
       - name: Apply Ingress
         run: |
           kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
 
-      - name: Restart CPU Scaler
-        run: |
-          kubectl rollout restart deployment/cpu-scaler -n blockchain-infra
-
       # ====================================
-      # 3️⃣ Esperar Deployments
+      # Esperar rollouts
       # ====================================
-      - name: Wait for Coordinator
+      - name: Wait for rollouts
         run: |
           kubectl rollout status deployment/coordinator -n blockchain-apps --timeout=300s
-
-      - name: Wait for Pool Manager
-        run: |
           kubectl rollout status deployment/pool-manager -n blockchain-apps --timeout=300s
-
-      - name: Wait for CPU Scaler
-        run: |
           kubectl rollout status deployment/cpu-scaler -n blockchain-infra --timeout=300s
 
       # ====================================
-      # 4️⃣ Verificación Final
+      # Verificación
       # ====================================
-      - name: Verify Apps
+      - name: Verify
         run: |
-          kubectl get svc -n blockchain-apps
-
-      - name: Verify Infra
-        run: |
-          kubectl get svc -n blockchain-infra
-
-      - name: Verify Ingress
-        run: |
+          kubectl get pods -n blockchain-apps
+          kubectl get pods -n blockchain-infra
           kubectl get ingress -A
