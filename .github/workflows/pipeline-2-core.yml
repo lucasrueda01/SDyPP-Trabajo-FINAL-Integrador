@@ -126,6 +126,10 @@ jobs:
                 --set grafana.service.type=ClusterIP \
                 --set grafana.env.GF_SERVER_ROOT_URL="http://grafana.${INGRESS_IP}.nip.io" \
                 --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=false
+                --set grafana.additionalDataSources[0].name=Loki \
+                --set grafana.additionalDataSources[0].type=loki \
+                --set grafana.additionalDataSources[0].access=proxy \
+                --set grafana.additionalDataSources[0].url=http://loki.monitoring.svc.cluster.local:3100
 
       # 🚀 Loki
       - name: Install Loki
