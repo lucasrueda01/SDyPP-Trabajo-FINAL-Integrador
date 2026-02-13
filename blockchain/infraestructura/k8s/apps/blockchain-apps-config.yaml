@@ -7,7 +7,7 @@ data:
   REDIS_HOST: redis.blockchain-infra
   REDIS_TCP_PORT: "6379"
 
-  RABBIT_HOST: rabbitmq.blockchain-infra
+  RABBIT_HOST: rabbitmq.blockchain-infra.svc
   RABBIT_TCP_PORT: "5672"
   RABBIT_VHOST: blockchain
 
