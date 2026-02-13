@@ -9,6 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
   K8S_CORE_DIR: blockchain/infraestructura/k8s/core
+  K8S_INGRESS_DIR: blockchain/infraestructura/k8s/ingress
   K8S_MONITORING_DIR: blockchain/infraestructura/k8s/monitoring
 
 jobs:
@@ -41,12 +42,41 @@ jobs:
           terraform init -input=false
           echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
+      # 📦 Instalar Helm
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
       # 🎯 Get kubeconfig
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
+
+      # ===============================
+      # 1️⃣ Instalar Ingress NGINX
+      # ===============================
+      - name: Install Ingress Controller
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            -f $K8S_INGRESS_DIR/values.yaml \
+            --set controller.service.loadBalancerIP=$INGRESS_IP
+
+
+      # ===============================
+      # 2️⃣ Crear ConfigMap TCP para Rabbit
+      # ===============================
+      - name: Create TCP ConfigMap for RabbitMQ
+        run: |
+          kubectl create configmap tcp-services \
+            --namespace ingress-nginx \
+            --from-literal=5672=blockchain-infra/rabbitmq:5672 \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
       # 1️⃣ Core (Redis + RabbitMQ)
@@ -61,13 +91,16 @@ jobs:
           kubectl wait --for=condition=AllReplicasReady rabbitmqcluster/rabbitmq \
             -n blockchain-infra --timeout=300s
 
+      # ===============================
+      # 3️⃣ Aplicar Ingress de Apps
+      # ===============================
+      - name: Apply Blockchain Ingress
+        run: |
+          kubectl apply -f $K8S_INGRESS_DIR/blockchain-ingress.yaml
+
       # ====================================
       # 2️⃣ Monitoring
       # ====================================
-
-      # 📦 Instalar Helm
-      - name: Install Helm
-        uses: azure/setup-helm@v4
 
       - name: Add Helm repos
         run: |
