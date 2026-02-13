@@ -121,12 +121,11 @@ jobs:
       - name: Install kube-prometheus-stack
         run: |
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-              -n monitoring \
-              --create-namespace \
-              --set grafana.service.type=ClusterIP \
-              --set grafana.env.GF_SERVER_ROOT_URL="http://${INGRESS_IP}/grafana" \
-              --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=true
-
+                -n monitoring \
+                --create-namespace \
+                --set grafana.service.type=ClusterIP \
+                --set grafana.env.GF_SERVER_ROOT_URL="http://grafana.${INGRESS_IP}.nip.io" \
+                --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=false
 
       # 🚀 Loki
       - name: Install Loki
@@ -155,7 +154,7 @@ jobs:
       # ====================================
       - name: Apply Grafana Ingress
         run: |
-          kubectl apply -f $K8S_MONITORING_DIR/grafana-ingress.yaml
+          envsubst < $K8S_MONITORING_DIR/grafana-ingress.yaml | kubectl apply -f -
 
       # ====================================
       # 4️⃣ Verificación final
