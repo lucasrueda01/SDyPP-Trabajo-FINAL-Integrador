@@ -124,8 +124,6 @@ jobs:
                 -n monitoring \
                 --create-namespace \
                 --set grafana.service.type=ClusterIP \
-                --set grafana.env.GF_SERVER_ROOT_URL="http://grafana.${INGRESS_IP}.nip.io" \
-                --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=false
                 --set grafana.additionalDataSources[0].name=Loki \
                 --set grafana.additionalDataSources[0].type=loki \
                 --set grafana.additionalDataSources[0].access=proxy \
