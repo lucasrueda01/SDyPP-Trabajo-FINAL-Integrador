@@ -1,9 +1,22 @@
 #!/bin/bash
 set -e
+apt-get update -y
+
 
 echo "======================================"
 echo "Inicializando Worker CPU..."
 echo "======================================"
+
+echo "Esperando metadata..."
+
+until curl -sf -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/id > /dev/null; do
+  echo "Metadata no disponible aún..."
+  sleep 2
+done
+
+echo "Metadata disponible."
+
 
 # =========================================
 # 1️⃣ Resolver hosts (Terraform o Metadata)
@@ -83,7 +96,6 @@ echo "Variables configuradas correctamente"
 # =========================================
 
 echo "Instalando Docker..."
-apt-get update -y
 apt-get install -y docker.io
 systemctl enable --now docker
 
