@@ -1,7 +1,5 @@
 #!/bin/bash
 set -e
-apt-get update -y
-
 
 echo "======================================"
 echo "Inicializando Worker CPU..."
@@ -95,6 +93,7 @@ echo "Variables configuradas correctamente"
 # 3️⃣ Instalar Docker
 # =========================================
 
+apt-get update -y
 echo "Instalando Docker..."
 apt-get install -y docker.io
 systemctl enable --now docker
