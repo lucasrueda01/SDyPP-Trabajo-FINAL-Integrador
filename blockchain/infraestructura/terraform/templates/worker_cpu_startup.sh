@@ -3,25 +3,27 @@ set -e
 
 echo "Inicializando worker CPU..."
 
-# Si vienen variables por metadata (cpu-scaler), usarlas
-if [[ -n "$RABBIT_HOST" ]]; then
-  echo "Usando metadata del cpu-scaler"
-else
-  # Si no, usar la variable del template terraform
+# Leer metadata de GCE (si existen)
+RABBIT_HOST=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/RABBIT_HOST || true)
+
+COORDINADOR_HOST=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/COORDINADOR_HOST || true)
+
+POOL_MANAGER_HOST=$(curl -s -H "Metadata-Flavor: Google" \
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/POOL_MANAGER_HOST || true)
+
+# Fallback a template terraform si no vienen por metadata
+if [[ -z "$RABBIT_HOST" ]]; then
   RABBIT_HOST="${ingress_ip}"
   COORDINADOR_HOST="${ingress_ip}"
   POOL_MANAGER_HOST="${ingress_ip}"
-  echo "Usando ingress_ip del template Terraform"
 fi
 
 echo "RABBIT_HOST: $RABBIT_HOST"
 echo "COORDINADOR_HOST: $COORDINADOR_HOST"
 echo "POOL_MANAGER_HOST: $POOL_MANAGER_HOST"
 
-
-echo RABBIT_HOST: $RABBIT_HOST
-echo COORDINADOR_HOST: $COORDINADOR_HOST  
-echo POOL_MANAGER_HOST: $POOL_MANAGER_HOST
 
 # Variables estáticas
 COORDINADOR_PORT="5000"
