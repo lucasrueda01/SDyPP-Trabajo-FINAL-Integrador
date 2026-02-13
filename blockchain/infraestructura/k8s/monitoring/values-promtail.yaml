@@ -1,0 +1,24 @@
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
+
+  snippets:
+    pipelineStages:
+      - docker: {}
+
+  positions:
+    filename: /run/promtail/positions.yaml
+
+daemonset:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi

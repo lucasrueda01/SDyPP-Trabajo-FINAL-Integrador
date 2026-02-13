@@ -1,0 +1,18 @@
+loki:
+  auth_enabled: false
+
+  persistence:
+    enabled: true
+    storageClassName: standard-rwo
+    size: 10Gi
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+service:
+  type: ClusterIP

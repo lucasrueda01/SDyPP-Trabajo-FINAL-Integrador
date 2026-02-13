@@ -117,4 +117,3 @@ jobs:
         run: |
           kubectl get pods -n blockchain-apps
           kubectl get pods -n blockchain-infra
-          kubectl get ingress -A
