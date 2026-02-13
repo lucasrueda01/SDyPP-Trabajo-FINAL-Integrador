@@ -121,11 +121,12 @@ jobs:
       - name: Install kube-prometheus-stack
         run: |
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-            -n monitoring \
-            --create-namespace \
-            --set grafana.service.type=ClusterIP \
-            --set grafana.grafana\.ini.server.root_url="%(protocol)s://%(domain)s/grafana" \
-            --set grafana.grafana\.ini.server.serve_from_sub_path=true
+              -n monitoring \
+              --create-namespace \
+              --set grafana.service.type=ClusterIP \
+              --set grafana.env.GF_SERVER_ROOT_URL="%(protocol)s://%(domain)s/grafana" \
+              --set grafana.env.GF_SERVER_SERVE_FROM_SUB_PATH=true
+
 
       # 🚀 Loki
       - name: Install Loki
