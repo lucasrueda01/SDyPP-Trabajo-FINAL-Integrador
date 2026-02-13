@@ -44,19 +44,22 @@ jobs:
           terraform init -input=false
           echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
-      - name: Create / Update Ingress ConfigMap
-        run: |
-          kubectl create configmap blockchain-ingress-config \
-            --from-literal=INGRESS_HOST=${INGRESS_IP} \
-            -n blockchain-apps \
-            --dry-run=client -o yaml | kubectl apply -f -
-
       # 🎯 Credenciales cluster
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --region $CLUSTER_REGION \
             --project $PROJECT_ID
+
+      # ====================================
+      # Crear ConfigMap con IP del Ingress
+      # ====================================
+      - name: Create / Update Ingress ConfigMap
+        run: |
+          kubectl create configmap blockchain-ingress-config \
+            --from-literal=INGRESS_HOST=${INGRESS_IP} \
+            -n blockchain-apps \
+            --dry-run=client -o yaml | kubectl apply -f
 
       # ====================================
       # 1️⃣ Aplicar Apps (Deployments + Services)
