@@ -275,11 +275,12 @@ def reconcile(redis_client):
     effective_cpu = len(base_instances) + len(dynamic_instances)
 
     logger.info(
-        "Estado actual: cpu_alive=%d gpu_alive=%d effective_cpu=%d target_cpu=%d dinámicos=%d",
+        "Estado actual: cpu_alive=%d gpu_alive=%d effective_cpu=%d target_cpu=%d base=%d dinámicos=%d",
         cpu_alive,
         gpu_alive,
         effective_cpu,
         target_cpu,
+        len(base_instances),
         len(dynamic_instances),
     )
 

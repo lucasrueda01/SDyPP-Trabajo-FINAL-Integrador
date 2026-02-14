@@ -5,6 +5,7 @@ config:
   snippets:
     pipelineStages:
       - docker: {}
+      - cri: {}
 
   positions:
     filename: /run/promtail/positions.yaml

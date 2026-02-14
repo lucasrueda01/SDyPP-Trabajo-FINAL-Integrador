@@ -129,6 +129,51 @@ def connect_rabbit():
             time.sleep(5)
 
 
+def declare_queues(channel):
+    # -------- COMPETITIVO --------
+    channel.exchange_declare(
+        exchange=EXCHANGE_COMPETITIVE,
+        exchange_type="fanout",
+        durable=True,
+    )
+
+    result = channel.queue_declare(
+        "", exclusive=True, arguments={"x-queue-type": "classic"}
+    )
+    queue_competitive = result.method.queue
+
+    channel.queue_bind(
+        exchange=EXCHANGE_COMPETITIVE,
+        queue=queue_competitive,
+    )
+
+    # -------- COOPERATIVO --------
+    channel.exchange_declare(
+        exchange=EXCHANGE_COOPERATIVE,
+        exchange_type="topic",
+        durable=True,
+    )
+
+    channel.queue_bind(
+        exchange=EXCHANGE_COOPERATIVE,
+        queue="queue.cpu",
+        routing_key="blocks.cpu",
+    )
+
+    # -------- Consumers --------
+    channel.basic_consume(
+        queue=queue_competitive,
+        on_message_callback=on_message_received,
+        auto_ack=False,
+    )
+
+    channel.basic_consume(
+        queue="queue.cpu",
+        on_message_callback=on_message_received,
+        auto_ack=False,
+    )
+
+
 def ejecutar_minero(
     from_val: int,
     to_val: int,
@@ -142,8 +187,8 @@ def ejecutar_minero(
 
     for nonce in range(from_val, to_val + 1):
         intentos += 1
-        # 🔥 Cada 10k intentos, mantenemos viva la conexión
-        if heartbeat_callback and intentos % 10000 == 0:
+        # Cada 100k intentos, mantenemos viva la conexión
+        if heartbeat_callback and intentos % 100000 == 0:
             try:
                 heartbeat_callback()
             except Exception:
@@ -346,48 +391,7 @@ def main():
 
             channel.basic_qos(prefetch_count=1)
 
-            # -------- COMPETITIVO (cola exclusiva) --------
-            channel.exchange_declare(
-                exchange=EXCHANGE_COMPETITIVE,
-                exchange_type="fanout",
-                durable=True,
-            )
-
-            result = channel.queue_declare(
-                "", exclusive=True, arguments={"x-queue-type": "classic"}
-            )
-            queue_competitive = result.method.queue
-
-            channel.queue_bind(
-                exchange=EXCHANGE_COMPETITIVE,
-                queue=queue_competitive,
-            )
-
-            # -------- COOPERATIVO (cola compartida) --------
-            channel.exchange_declare(
-                exchange=EXCHANGE_COOPERATIVE,
-                exchange_type="topic",
-                durable=True,
-            )
-
-            channel.queue_bind(
-                exchange=EXCHANGE_COOPERATIVE,
-                queue="queue.cpu",
-                routing_key="blocks.cpu",
-            )
-
-            # Consumimos de ambas
-            channel.basic_consume(
-                queue=queue_competitive,
-                on_message_callback=on_message_received,
-                auto_ack=False,
-            )
-
-            channel.basic_consume(
-                queue="queue.cpu",
-                on_message_callback=on_message_received,
-                auto_ack=False,
-            )
+            declare_queues(channel)
 
             # -------- Heartbeat thread --------
             hb_thread = Thread(

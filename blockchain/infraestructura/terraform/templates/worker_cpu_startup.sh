@@ -98,6 +98,11 @@ echo "Instalando Docker..."
 apt-get install -y docker.io
 systemctl enable --now docker
 
+echo "Instalando Chrony para sincronización horaria..."
+apt install -y chrony
+systemctl enable chrony
+systemctl start chrony
+
 # =========================================
 # 4️⃣ Ejecutar contenedor
 # =========================================
