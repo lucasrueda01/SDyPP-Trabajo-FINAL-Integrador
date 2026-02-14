@@ -260,10 +260,10 @@ def reconcile(redis_client):
     metrics.gpus_missing.set(missing_gpus)
 
     if missing_gpus > 0:
-        target_cpu = base_instances + (missing_gpus * settings.CPUS_PER_GPU)
+        target_cpu = len(base_instances) + (missing_gpus * settings.CPUS_PER_GPU)
         target_cpu = min(target_cpu, MAX_CPU_WORKERS)
     else:
-        target_cpu = base_instances
+        target_cpu = len(base_instances)
 
     metrics.target_cpu_workers.set(target_cpu)
 
