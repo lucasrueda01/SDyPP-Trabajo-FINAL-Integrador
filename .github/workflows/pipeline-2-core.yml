@@ -156,11 +156,15 @@ jobs:
                 -n monitoring --timeout=300s
 
       # ====================================
-      # 3️⃣ Ingress de Grafana
+      # 3️⃣ Ingress de Grafana y Prometheus
       # ====================================
       - name: Apply Grafana Ingress
         run: |
           envsubst < $K8S_MONITORING_DIR/grafana-ingress.yaml | kubectl apply -f -
+
+      - name: Apply Prometheus Ingress
+        run: |
+          envsubst < prometheus-ingress.yaml | kubectl apply -f -
 
       # ====================================
       # 4️⃣ Verificación final
