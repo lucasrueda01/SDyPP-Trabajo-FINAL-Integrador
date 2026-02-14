@@ -13,3 +13,6 @@ spec:
     - name: http
       port: 5000
       targetPort: 5000
+    - name: metrics
+      port: 8000
+      targetPort: 8000

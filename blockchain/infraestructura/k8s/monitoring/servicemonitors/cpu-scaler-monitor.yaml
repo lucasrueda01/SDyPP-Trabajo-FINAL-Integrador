@@ -13,6 +13,6 @@ spec:
     matchNames:
       - blockchain-infra
   endpoints:
-    - port: http
+    - port: metrics
       path: /metrics
       interval: 10s

@@ -13,6 +13,6 @@ spec:
     matchNames:
       - blockchain-apps
   endpoints:
-    - port: http
-      path: /pool/metrics
+    - port: metrics
+      path: /metrics
       interval: 10s

@@ -9,6 +9,6 @@ spec:
   selector:
     app: cpu-scaler
   ports:
-    - name: http
+    - name: metrics
       port: 8000
       targetPort: 8000
