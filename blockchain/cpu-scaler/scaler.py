@@ -135,13 +135,35 @@ def create_cpu_worker():
     logger.warning("Worker CPU dinámico creado: %s", name)
 
 
+def list_base_cpu_instances():
+    client = compute_v1.InstancesClient()
+
+    filter_expr = 'labels.managed-by = "terraform" AND labels.role = "worker-cpu"'
+
+    instances = []
+    for inst in client.list(
+        project=GCP_PROJECT,
+        zone=GCP_ZONE,
+        filter=filter_expr,
+    ):
+        if inst.status == "RUNNING":
+            instances.append(inst.name)
+
+    return instances
+
+
 def list_dynamic_cpu_instances():
     client = compute_v1.InstancesClient()
-    instances = []
 
-    for inst in client.list(project=GCP_PROJECT, zone=GCP_ZONE):
-        labels = inst.labels or {}
-        if labels.get("managed-by") == "cpu-scaler":
+    filter_expr = 'labels.managed-by = "cpu-scaler" AND labels.role = "worker-cpu"'
+
+    instances = []
+    for inst in client.list(
+        project=GCP_PROJECT,
+        zone=GCP_ZONE,
+        filter=filter_expr,
+    ):
+        if inst.status == "RUNNING":
             instances.append(inst.name)
 
     return instances
@@ -245,10 +267,12 @@ def reconcile(redis_client):
     metrics.target_cpu_workers.set(target_cpu)
 
     # ---- estado actual real ----
+    base_instances = list_base_cpu_instances()
     dynamic_instances = list_dynamic_cpu_instances()
+
     metrics.dynamic_cpu_workers.set(len(dynamic_instances))
 
-    effective_cpu = settings.BASE_CPU_REPLICAS + len(dynamic_instances)
+    effective_cpu = len(base_instances) + len(dynamic_instances)
 
     logger.info(
         "Estado actual: cpu_alive=%d gpu_alive=%d effective_cpu=%d target_cpu=%d dinámicos=%d",
