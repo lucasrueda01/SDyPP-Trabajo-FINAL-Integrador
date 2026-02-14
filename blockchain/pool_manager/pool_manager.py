@@ -33,6 +33,7 @@ logger.info("Pool Manager iniciando")
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
     metrics.update_uptime()
+    global redis_client
     try:
         redis_client.ping()
     except Exception as e:
