@@ -164,7 +164,7 @@ jobs:
 
       - name: Apply Prometheus Ingress
         run: |
-          envsubst < prometheus-ingress.yaml | kubectl apply -f -
+          envsubst < $K8S_MONITORING_DIR/prometheus-ingress.yaml | kubectl apply -f -
 
       # ====================================
       # 4️⃣ Verificación final
