@@ -194,6 +194,7 @@ def reconcile(redis_client):
     metrics.worker_heartbeat_interval_seconds.clear()
 
     alive = get_alive_workers(redis_client)
+    base_instances = list_base_cpu_instances()
     logger.info("Workers vivos detectados: %d", len(alive))
     cpu_alive = 0
     gpu_alive = 0
@@ -259,15 +260,14 @@ def reconcile(redis_client):
     metrics.gpus_missing.set(missing_gpus)
 
     if missing_gpus > 0:
-        target_cpu = settings.BASE_CPU_REPLICAS + (missing_gpus * settings.CPUS_PER_GPU)
+        target_cpu = base_instances + (missing_gpus * settings.CPUS_PER_GPU)
         target_cpu = min(target_cpu, MAX_CPU_WORKERS)
     else:
-        target_cpu = settings.BASE_CPU_REPLICAS
+        target_cpu = base_instances
 
     metrics.target_cpu_workers.set(target_cpu)
 
     # ---- estado actual real ----
-    base_instances = list_base_cpu_instances()
     dynamic_instances = list_dynamic_cpu_instances()
 
     metrics.dynamic_cpu_workers.set(len(dynamic_instances))
