@@ -13,6 +13,7 @@ resources:
   # CPU Scaler
   - cpu-scaler/cpu-scaler-deployment.yaml
   - cpu-scaler/cpu-scaler-service-account.yaml
+  - cpu-scaler/cpu-scaler-service.yaml
 
   # Pool Manager
   - pool-manager/pool-manager-deployment.yaml
