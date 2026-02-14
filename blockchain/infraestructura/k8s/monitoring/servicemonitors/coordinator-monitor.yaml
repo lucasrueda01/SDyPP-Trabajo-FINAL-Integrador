@@ -14,5 +14,5 @@ spec:
       - blockchain-apps
   endpoints:
     - port: http
-      path: /metrics
+      path: /coordinator/metrics
       interval: 10s
