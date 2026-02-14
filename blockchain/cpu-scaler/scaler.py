@@ -138,14 +138,14 @@ def create_cpu_worker():
 def list_base_cpu_instances():
     client = compute_v1.InstancesClient()
 
-    filter_expr = 'labels.managed-by = "terraform" AND labels.role = "worker-cpu"'
-
-    instances = []
-    for inst in client.list(
+    request = compute_v1.ListInstancesRequest(
         project=GCP_PROJECT,
         zone=GCP_ZONE,
-        filter=filter_expr,
-    ):
+        filter='labels.managed-by = "terraform" AND labels.role = "worker-cpu"',
+    )
+
+    instances = []
+    for inst in client.list(request=request):
         if inst.status == "RUNNING":
             instances.append(inst.name)
 
@@ -155,14 +155,14 @@ def list_base_cpu_instances():
 def list_dynamic_cpu_instances():
     client = compute_v1.InstancesClient()
 
-    filter_expr = 'labels.managed-by = "cpu-scaler" AND labels.role = "worker-cpu"'
-
-    instances = []
-    for inst in client.list(
+    request = compute_v1.ListInstancesRequest(
         project=GCP_PROJECT,
         zone=GCP_ZONE,
-        filter=filter_expr,
-    ):
+        filter='labels.managed-by = "cpu-scaler" AND labels.role = "worker-cpu"',
+    )
+
+    instances = []
+    for inst in client.list(request=request):
         if inst.status == "RUNNING":
             instances.append(inst.name)
 
