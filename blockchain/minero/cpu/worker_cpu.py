@@ -30,12 +30,12 @@ EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
 EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
 QUEUE_COOPERATIVE = "blocks_queue"
 
-hostCoordinador = settings.COORDINADOR_HOST + ".nip.io/coordinator"
+hostCoordinador = "coordinator." + settings.COORDINADOR_HOST + ".nip.io"
 puertoCoordinador = settings.COORDINADOR_PORT  # Sin usar
 hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
-pool_manager_host = settings.POOL_MANAGER_HOST + ".nip.io/pool"
+pool_manager_host = "pool." + settings.POOL_MANAGER_HOST + ".nip.io"
 pool_manager_port = settings.POOL_MANAGER_PORT  # Sin usar
 logger.info(
     "Configuración del worker CPU: coordinador=%s, rabbit=%s, pool_manager=%s",
