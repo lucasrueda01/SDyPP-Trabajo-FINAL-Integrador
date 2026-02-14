@@ -34,7 +34,7 @@ WORKER_ID = f"gpu-{random.randint(1000,9999)}"
 EXCHANGE_COMPETITIVE = "blocks_competitive"
 EXCHANGE_COOPERATIVE = "blocks_cooperative"
 
-hostCoordinador = settings.COORDINADOR_HOST
+hostCoordinador = "coordinator." + settings.COORDINADOR_HOST + ".nip.io"
 puertoCoordinador = settings.COORDINADOR_PORT
 
 rabbit_url = settings.RABBIT_URL
@@ -42,8 +42,15 @@ hostRabbit = settings.RABBIT_HOST
 rabbitUser = settings.RABBIT_USER
 rabbitPassword = settings.RABBIT_PASSWORD
 
-pool_manager_host = settings.POOL_MANAGER_HOST
+pool_manager_host = "pool." + settings.POOL_MANAGER_HOST + ".nip.io"
 pool_manager_port = settings.POOL_MANAGER_PORT
+
+logger.info(
+    "Configuración del worker GPU: coordinador=%s, rabbit=%s, pool_manager=%s",
+    hostCoordinador,
+    hostRabbit,
+    pool_manager_host,
+)
 
 
 # -----------------------
@@ -258,7 +265,11 @@ def main():
 
     result = channel.queue_declare("", exclusive=True)
     queue_competitive = result.method.queue
-    channel.queue_bind(exchange=EXCHANGE_COMPETITIVE, queue=queue_competitive, arguments={"x-queue-type": "classic"})
+    channel.queue_bind(
+        exchange=EXCHANGE_COMPETITIVE,
+        queue=queue_competitive,
+        arguments={"x-queue-type": "classic"},
+    )
 
     # -------- COOPERATIVO --------
     channel.exchange_declare(
