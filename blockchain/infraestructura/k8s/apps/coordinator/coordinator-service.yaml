@@ -8,5 +8,6 @@ spec:
   selector:
     app: coordinator
   ports:
-    - port: 5000
+    - name: http
+      port: 5000
       targetPort: 5000

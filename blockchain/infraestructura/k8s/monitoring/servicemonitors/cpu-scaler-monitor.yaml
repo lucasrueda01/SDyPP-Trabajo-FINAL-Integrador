@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cpu-scaler-monitor
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: cpu-scaler
+  namespaceSelector:
+    matchNames:
+      - blockchain-infra
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 10s

@@ -8,5 +8,6 @@ spec:
   selector:
     app: pool-manager
   ports:
-    - port: 6000
+    - name: http
+      port: 6000
       targetPort: 6000

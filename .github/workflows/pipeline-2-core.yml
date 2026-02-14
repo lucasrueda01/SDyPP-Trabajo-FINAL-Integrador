@@ -167,6 +167,13 @@ jobs:
           envsubst < $K8S_MONITORING_DIR/prometheus-ingress.yaml | kubectl apply -f -
 
       # ====================================
+      # 3️⃣ Aplicar ServiceMonitors
+      # ====================================
+      - name: Apply ServiceMonitors
+        run: |
+          kubectl apply -f $K8S_MONITORING_DIR/servicemonitors/
+
+      # ====================================
       # 4️⃣ Verificación final
       # ====================================
       - name: Verify Core
@@ -188,3 +195,4 @@ jobs:
           echo "Coordinator: http://coordinator.${INGRESS_IP}.nip.io"
           echo "Pool Manager: http://pool.${INGRESS_IP}.nip.io"
           echo "Grafana: http://grafana.${INGRESS_IP}.nip.io"
+          echo: "Prometheus: http://prometheus.${INGRESS_IP}.nip.io"
