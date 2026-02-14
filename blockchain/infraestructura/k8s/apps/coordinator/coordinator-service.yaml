@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: coordinator
   namespace: blockchain-apps
+  labels:
+    app: coordinator
 spec:
   type: ClusterIP
   selector:

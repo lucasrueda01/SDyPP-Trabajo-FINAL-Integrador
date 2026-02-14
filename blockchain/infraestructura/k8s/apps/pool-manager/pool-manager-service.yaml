@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: pool-manager
   namespace: blockchain-apps
+  labels:
+    app: pool-manager
 spec:
   type: ClusterIP
   selector:
