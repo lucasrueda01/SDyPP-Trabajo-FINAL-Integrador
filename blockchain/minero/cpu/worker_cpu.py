@@ -162,10 +162,15 @@ def declare_queues(channel):
         durable=True,
     )
 
+    channel.queue_declare(
+        queue="queue.workers",
+        durable=True,
+        arguments={"x-queue-type": "quorum"},
+    )
+
     channel.queue_bind(
         exchange=EXCHANGE_COOPERATIVE,
-        queue="queue.cpu",
-        routing_key="blocks.cpu",
+        queue="queue.workers",
     )
 
     # -------- Consumers --------
@@ -176,7 +181,7 @@ def declare_queues(channel):
     )
 
     channel.basic_consume(
-        queue="queue.cpu",
+        queue="queue.workers",
         on_message_callback=on_message_received,
         auto_ack=False,
     )
