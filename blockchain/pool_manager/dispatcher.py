@@ -17,9 +17,15 @@ def dispatch_to_workers(block, alive_workers, channel):
         logger.warning("No hay workers vivos para %s", block_id)
         return False
 
-    if not settings.COOPERATIVE_MINING:
-        logger.info("Despachando %s en COMPETITIVO", block_id)
+    # Determinar modo de minería
+    if "mining_mode" in block:
+        mining_mode = block["mining_mode"]
+    else:
+        mining_mode = "cooperative" if settings.COOPERATIVE_MINING else "competitive"
         
+    # MODO COMPETITIVO: todos los workers compiten por el bloque completo
+    if mining_mode == "competitive":
+        logger.info("Despachando %s en COMPETITIVO", block_id)
         logger.info("Rango nonce completo: %d - %d. Workers vivos: %d", 1, block["numMaxRandom"], len(alive_workers))
         safe_publish(
             channel,
@@ -29,6 +35,7 @@ def dispatch_to_workers(block, alive_workers, channel):
         )
         return True
 
+    # MODO COOPERATIVO: fragmentar el bloque en sub-tareas para cada worker
     logger.info("Despachando %s en COOPERATIVO", block_id)
 
     gpu_payloads, cpu_payloads = fragmentar(
@@ -36,7 +43,7 @@ def dispatch_to_workers(block, alive_workers, channel):
         len(gpu_workers),
         len(cpu_workers),
     )
-
+    # Asignar fragmentos a GPUs
     for i, payload in enumerate(gpu_payloads):
         start = payload["nonce_start"]
         end = payload["nonce_end"]
@@ -55,7 +62,8 @@ def dispatch_to_workers(block, alive_workers, channel):
             "blocks.gpu",
             json.dumps(payload),
         )
-
+        
+    # Asignar fragmentos a CPUs
     for i, payload in enumerate(cpu_payloads):
         start = payload["nonce_start"]
         end = payload["nonce_end"]

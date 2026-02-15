@@ -2,9 +2,11 @@ import logging
 import sys
 from flask import Flask, jsonify, request
 from prometheus_client import start_http_server
+from redis_client import get_blockchain, get_blockchain_height, update_runtime_config
 import metrics
 import threading
 import config.settings as settings
+from redis_client import get_runtime_config
 from consensus_service import procesar_resultado_worker
 
 from queue_client import encolar
@@ -33,6 +35,14 @@ logger = logging.getLogger("coordinator")
 redisConnect()
 bucket = bucketConnect(settings.BUCKET_NAME)
 
+# Configuración de parámetros de minería en runtime
+runtime_config = {
+    "fragment_percent": settings.FRAGMENT_PERCENT,
+    "max_random": settings.MAX_RANDOM,
+    "mining_mode": "cooperative" if settings.COOPERATIVE_MINING else "competitive",
+    "difficulty": 0,  # Si es 0 se calcula dependiendo cantidad de GPUs
+}
+
 # Background thread
 threading.Thread(target=processPackages, args=(bucket,), daemon=True).start()
 
@@ -59,6 +69,27 @@ def receive_solved_task():
     data = request.get_json()
     response, status = procesar_resultado_worker(data, bucket)
     return jsonify(response), status
+
+
+@app.route("/blockchain", methods=["GET"])
+def get_bc():
+    return jsonify(get_blockchain())
+
+
+@app.route("/blockchain/height", methods=["GET"])
+def bc_height():
+    return jsonify(get_blockchain_height())
+
+
+@app.route("/config", methods=["POST"])
+def update_config():
+    data = request.json
+    update_runtime_config(data)
+    return jsonify({"status": "updated"})
+
+@app.route("/config", methods=["GET"])
+def get_config():
+    return jsonify(get_runtime_config())
 
 
 if __name__ == "__main__":

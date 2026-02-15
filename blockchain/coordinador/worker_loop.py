@@ -7,6 +7,7 @@ import config.settings as settings
 from queue_client import queueConnect, publicar_a_pool_manager
 from redis_client import getUltimoBlock, gpus_vivas
 from storage_client import subirBlock
+from redis_client import get_runtime_config
 
 logger = logging.getLogger("coordinator")
 
@@ -33,20 +34,37 @@ def processPackages(bucket):
                 blockId = str(uuid.uuid4())
                 metrics.blocks_created_total.inc()
                 last = getUltimoBlock()
+                runtime_config = get_runtime_config()
 
-                gpus = gpus_vivas()
-                difficulty = (
-                    settings.DIFFICULTY_LOW if gpus == 0 else settings.DIFFICULTY_HIGH
-                )
+                # -------- DIFFICULTY --------
+                if runtime_config["difficulty"] > 0:
+                    difficulty = runtime_config["difficulty"]
+                else:
+                    gpus = gpus_vivas()
+                    difficulty = (
+                        settings.DIFFICULTY_LOW
+                        if gpus == 0
+                        else settings.DIFFICULTY_HIGH
+                    )
 
+                # -------- ARMADO DEL BLOQUE --------
                 block = {
                     "blockId": blockId,
                     "transactions": txs,
                     "prefijo": "0" * difficulty,
                     "baseStringChain": settings.BASE_STRING_CHAIN,
                     "blockchainContent": last["blockchainContent"] if last else "0",
-                    "numMaxRandom": settings.MAX_RANDOM,
+                    "numMaxRandom": runtime_config["max_random"],
                 }
+
+                if runtime_config["mining_mode"] and runtime_config["mining_mode"] in [
+                    "cooperative",
+                    "competitive",
+                ]:
+                    block["mining_mode"] = runtime_config["mining_mode"]
+
+                if runtime_config["fragment_percent"]:
+                    block["fragment_percent"] = runtime_config["fragment_percent"]
 
                 subirBlock(bucket, block)
                 publicar_a_pool_manager(block, channel)

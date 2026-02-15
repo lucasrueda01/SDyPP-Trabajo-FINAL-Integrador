@@ -63,3 +63,37 @@ def gpus_vivas():
         if data.get(b"type") == b"gpu":
             count += 1
     return count
+
+
+def get_blockchain():
+    client = get_redis()
+    chain = client.lrange("blockchain", 0, -1)
+    return [json.loads(b.decode("utf-8")) for b in chain]
+
+
+def get_blockchain_height():
+    client = get_redis()
+    height = client.llen("blockchain")
+    return {"height": height}
+
+
+def get_runtime_config():
+    client = get_redis()
+    config = client.hgetall("system:config")
+
+    return {
+        "fragment_percent": float(
+            config.get(b"fragment_percent", settings.FRAGMENT_PERCENT)
+        ),
+        "max_random": int(config.get(b"max_random", settings.MAX_RANDOM)),
+        "difficulty": int(config.get(b"difficulty", 0)),
+        "mining_mode": config.get(b"mining_mode", b"cooperative").decode(),
+    }
+
+
+def update_runtime_config(new_config):
+    client = get_redis()
+    pipe = client.pipeline()
+    for key, value in new_config.items():
+        pipe.hset("system:config", key, value)
+    pipe.execute()
