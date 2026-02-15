@@ -5,7 +5,10 @@
 #include <stdint.h>
 #include <cuda_runtime.h>
 
-// ---------------- MD5 (dispositivo) ----------------
+constexpr int RANGE_FROM = 0;
+constexpr int RANGE_TO   = 200000;
+
+// ---------------- MD5 ----------------
 __constant__ uint32_t dev_shifts[16] = { 7,12,17,22, 5,9,14,20, 4,11,16,23, 6,10,15,21 };
 __constant__ uint32_t dev_sines[64] = {
     0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,0xa8304613,0xfd469501,
@@ -75,7 +78,7 @@ __device__ void cuda_md5_singleblock(const uint8_t* initial_msg, int initial_len
     h[2] = 0x98badcfe;
     h[3] = 0x10325476;
 
-    // preparar bloque (64 bytes) en stack
+    // preparar bloque en stack
     uint8_t chunk[64];
     // inicializar con ceros
     for (int i = 0; i < 64; ++i) chunk[i] = 0;
@@ -86,7 +89,7 @@ __device__ void cuda_md5_singleblock(const uint8_t* initial_msg, int initial_len
     // padding
     chunk[initial_len] = 0x80;
 
-    // longitud en bits, little-endian, en offset 56..63
+    // longitud en bits, little-endian
     uint64_t bits_len = (uint64_t)initial_len * 8ULL;
     for (int i = 0; i < 8; ++i) chunk[56 + i] = (uint8_t)((bits_len >> (8 * i)) & 0xFF);
 
@@ -135,7 +138,6 @@ __device__ void bytes_to_hex_device(const uint8_t* bytes, char* hex_out) {
 }
 
 // -------------------- Kernel con conteo de intentos --------------------
-// nonce + input
 __global__ void mine_kernel_with_attempts(
     const char* input, int input_len,
     const char* prefix, int prefix_len,
@@ -210,15 +212,15 @@ __global__ void mine_kernel_with_attempts(
 
 // -------------------- Host main --------------------
 int main(int argc, char *argv[]) {
-    if (argc != 6) {
-        fprintf(stderr, "Uso: %s <from> <to> <prefix> <input> <output>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "Uso: %s <prefix> <input> <output>\n", argv[0]);
+        fprintf(stderr, "RANGO hardcodeado en el codigo: [%d .. %d]\n", RANGE_FROM, RANGE_TO);
         return 1;
     }
 
-    int from = atoi(argv[1]); int to = atoi(argv[2]);
-    const char* prefix = argv[3];
-    const char* input = argv[4];
-    const char* output = argv[5];
+    const char* prefix = argv[1];
+    const char* input = argv[2];
+    const char* output = argv[3];
 
     int input_len = (int)strlen(input);
     int prefix_len = (int)strlen(prefix);
@@ -246,7 +248,7 @@ int main(int argc, char *argv[]) {
     mine_kernel_with_attempts<<<blocks, threads>>>(
         d_input, input_len,
         d_prefix, prefix_len,
-        from, to,
+        RANGE_FROM, RANGE_TO,
         d_found, d_nonce, d_hash,
         d_attempts
     );

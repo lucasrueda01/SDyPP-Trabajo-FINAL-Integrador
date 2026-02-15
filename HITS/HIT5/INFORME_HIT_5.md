@@ -9,4 +9,4 @@ La GPU trabaja con muchos hilos al mismo tiempo; cuando alguno encuentra un resu
 ## Resultados
 
 - **Entrada:** prefijo `"00"`, cadena `"hola mundo"`  
-- **Salida:** Hash resultante `00633e36003628dfa029e841be3f6218`, intentos `40960`
+- **Salida:** Hash resultante `004f794a54ef74ac507467c11af48c9d`, intentos `40960`
