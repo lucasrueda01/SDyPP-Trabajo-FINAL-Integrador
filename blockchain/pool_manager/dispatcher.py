@@ -1,85 +1,93 @@
 import json
 import logging
 import config.settings as settings
-from fragmenter import fragmentar
 from rabbitmq import safe_publish
-import metrics
 
 logger = logging.getLogger("pool-manager")
 
 
+def fragmentar(block, total_workers):
+    nonce_start = block.get("nonce_start", 0)
+    nonce_end = block.get(
+        "nonce_end",
+        block.get("numMaxRandom", settings.MAX_RANDOM),
+    )
+    total_space = nonce_end - nonce_start + 1
+    if total_space <= 0 or total_workers <= 0:
+        return []
+    fragment_percent = block.get(
+        "fragment_percent",
+        settings.FRAGMENT_PERCENT,
+    )
+    fragment_size = int(total_space * fragment_percent)
+
+    if fragment_size <= 0:
+        fragment_size = 1
+    payloads = []
+    cursor = nonce_start
+
+    while cursor <= nonce_end:
+        end = min(cursor + fragment_size - 1, nonce_end)
+
+        payload = {
+            **block,
+            "nonce_start": cursor,
+            "nonce_end": end,
+        }
+
+        payloads.append(payload)
+        cursor = end + 1
+
+    return payloads
+
+
 def dispatch_to_workers(block, alive_workers, channel):
     block_id = block["blockId"]
-    gpu_workers = [w for w in alive_workers if w["type"] == "gpu"]
-    cpu_workers = [w for w in alive_workers if w["type"] == "cpu"]
-    
+
     if not alive_workers:
         logger.warning("No hay workers vivos para %s", block_id)
         return False
 
-    # Determinar modo de minería
+    # Determinar modo
     if "mining_mode" in block:
         mining_mode = block["mining_mode"]
     else:
         mining_mode = "cooperative" if settings.COOPERATIVE_MINING else "competitive"
-        
-    # MODO COMPETITIVO: todos los workers compiten por el bloque completo
+
+    # MODO COMPETITIVO
     if mining_mode == "competitive":
         logger.info("Despachando %s en COMPETITIVO", block_id)
-        logger.info("Rango nonce completo: %d - %d. Workers vivos: %d", 1, block["numMaxRandom"], len(alive_workers))
+
         safe_publish(
             channel,
             "blocks_competitive",
             "",
             json.dumps(block),
         )
+
         return True
 
-    # MODO COOPERATIVO: fragmentar el bloque en sub-tareas para cada worker
+    # MODO COOPERATIVO
     logger.info("Despachando %s en COOPERATIVO", block_id)
 
-    gpu_payloads, cpu_payloads = fragmentar(
-        block,
-        len(gpu_workers),
-        len(cpu_workers),
-    )
-    # Asignar fragmentos a GPUs
-    for i, payload in enumerate(gpu_payloads):
-        start = payload["nonce_start"]
-        end = payload["nonce_end"]
+    # total_workers ahora es simple
+    total_workers = len(alive_workers)
 
+    payloads = fragmentar(block, total_workers)
+
+    for i, payload in enumerate(payloads):
         logger.info(
-            "Asignando GPU %d/%d -> nonce %d-%d",
+            "Asignando fragmento %d/%d -> nonce %d-%d",
             i + 1,
-            len(gpu_payloads),
-            start,
-            end,
+            len(payloads),
+            payload["nonce_start"],
+            payload["nonce_end"],
         )
 
         safe_publish(
             channel,
             "blocks_cooperative",
-            "blocks.gpu",
-            json.dumps(payload),
-        )
-        
-    # Asignar fragmentos a CPUs
-    for i, payload in enumerate(cpu_payloads):
-        start = payload["nonce_start"]
-        end = payload["nonce_end"]
-
-        logger.info(
-            "Asignando CPU %d/%d -> nonce %d-%d",
-            i + 1,
-            len(cpu_payloads),
-            start,
-            end,
-        )
-
-        safe_publish(
-            channel,
-            "blocks_cooperative",
-            "blocks.cpu",
+            "",
             json.dumps(payload),
         )
 

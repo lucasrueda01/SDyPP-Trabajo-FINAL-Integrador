@@ -4,13 +4,10 @@ import logging
 from rabbitmq import queue_connect
 from dispatcher import dispatch_to_workers
 from redis_workers import get_alive_workers
-from fragmenter import fragmentar
-from rabbitmq import safe_publish
 import traceback
 
 
 logger = logging.getLogger("pool-manager")
-
 
 def start_pool_consumer(redis_client):
     try:
@@ -43,50 +40,5 @@ def start_pool_consumer(redis_client):
         )
         logger.info("Pool Consumer iniciado, esperando mensajes...")
         channel_pool.start_consuming()
-    except Exception as e:
-        traceback.print_exc()
-
-
-def start_dlq_consumer(redis_client):
-    try:
-        connection, channel_dlq = queue_connect()
-        channel_dlq.basic_qos(prefetch_count=1)
-
-        def on_dlq(ch, method, properties, body):
-            block = json.loads(body)
-            logger.warning(
-                "DLQ: mensaje expirado blockId=%s",
-                block.get("blockId"),
-            )
-
-            alive, _ = get_alive_workers(redis_client)
-            cpu_workers = [w for w in alive if w["type"] == "cpu"]
-
-            _, cpu_payloads = fragmentar(block, 0, len(cpu_workers))
-
-            logger.info(
-                "DLQ: reasignando bloque %s a %d CPUs",
-                block.get("blockId"),
-                len(cpu_payloads),
-            )
-
-            for payload in cpu_payloads:
-                safe_publish(
-                    channel_dlq,
-                    "blocks_cooperative",
-                    "blocks.cpu",
-                    json.dumps(payload),
-                )
-
-            ch.basic_ack(method.delivery_tag)
-
-        channel_dlq.basic_consume(
-            queue="queue.dlq",
-            on_message_callback=on_dlq,
-            auto_ack=False,
-        )
-
-        logger.info("DLQ Consumer iniciado, esperando mensajes...")
-        channel_dlq.start_consuming()
     except Exception as e:
         traceback.print_exc()

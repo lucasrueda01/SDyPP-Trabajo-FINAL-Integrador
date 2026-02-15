@@ -39,42 +39,22 @@ def queue_connect(retries=10, delay=3):
             )
 
             # Pool queue
-            channel.queue_declare(queue="pool_tasks", durable=True, arguments={"x-queue-type": "quorum"})
-
-            # ===== DLQ =====
-            dlx_name = "dlx.tasks"
-            gpu_ttl = 60000  # ms
-
-            channel.exchange_declare(
-                exchange=dlx_name,
-                exchange_type="fanout",
-                durable=True,
-            )
-
-            channel.queue_declare(queue="queue.dlq", durable=True, arguments={"x-queue-type": "quorum"})
-            channel.queue_bind(exchange=dlx_name, queue="queue.dlq")
-
-            # ===== WORKER QUEUES (CANÓNICAS) =====
-
-            # CPU (simple)
             channel.queue_declare(
-                queue="queue.cpu",
-                durable=True,
-                arguments={"x-queue-type": "quorum"}
+                queue="pool_tasks", durable=True, arguments={"x-queue-type": "quorum"}
             )
 
-            # GPU (TTL + DLQ DEFINITIVO)
+            # Cola compartida de workers
             channel.queue_declare(
-                queue="queue.gpu",
+                queue="queue.workers",
                 durable=True,
-                arguments={
-                    "x-message-ttl": gpu_ttl,
-                    "x-dead-letter-exchange": dlx_name,
-                    "x-dead-letter-routing-key": "dlq",  # <-- CLAVE
-                    "x-queue-type": "quorum",
-                },
+                arguments={"x-queue-type": "quorum"},
             )
-            
+
+            channel.queue_bind(
+                exchange="blocks_cooperative",
+                queue="queue.workers",
+            )
+
             logger.info("Conectado a RabbitMQ en %s:%s", params.host, params.port)
             return connection, channel
 

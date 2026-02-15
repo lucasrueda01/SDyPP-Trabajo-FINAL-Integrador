@@ -34,11 +34,6 @@ blocks_failed_total = Counter(
     "Bloques que fallaron en el despacho"
 )
 
-blocks_dlq_total = Counter(
-    "pool_blocks_dlq_total",
-    "Bloques enviados a DLQ"
-)
-
 worker_heartbeats_total = Counter(
     "pool_worker_heartbeats_total",
     "Heartbeats recibidos de workers"
