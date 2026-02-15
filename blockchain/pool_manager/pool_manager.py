@@ -2,7 +2,7 @@ import threading
 from flask import Flask, request, jsonify
 import config.settings as settings
 from redis_workers import redis_connect
-from consumers import start_pool_consumer, start_dlq_consumer
+from consumers import start_pool_consumer
 import logging
 import sys
 import time
