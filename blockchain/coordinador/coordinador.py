@@ -1,6 +1,7 @@
 import logging
 import sys
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from prometheus_client import start_http_server
 from redis_client import get_blockchain, get_blockchain_height, update_runtime_config
 import metrics
@@ -18,7 +19,7 @@ from worker_loop import processPackages
 start_http_server(8000)
 
 app = Flask(__name__)
-
+CORS(app)
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] %(message)s",

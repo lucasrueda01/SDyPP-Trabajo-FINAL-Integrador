@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir \
     redis \
     google-cloud-storage \
     python-dotenv \
-    prometheus_client
+    prometheus_client \
+    flask-cors
 
 # Comando de arranque
 CMD ["python", "coordinador.py"]
