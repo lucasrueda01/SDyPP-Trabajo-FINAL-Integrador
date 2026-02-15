@@ -1,6 +1,5 @@
 import os
 import time
-import json
 import logging
 import redis
 
@@ -21,7 +20,6 @@ CPU_IMAGE = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
 CPU_DISK_SIZE_GB = 50
 CPU_NETWORK = "global/networks/default"
 
-
 DEPLOYMENT_NAME = "blockchain"
 CPU_TAGS = ["worker-cpu"]
 
@@ -31,18 +29,11 @@ RABBIT_EXTERNAL_HOST = os.getenv("RABBIT_EXTERNAL_HOST")
 COORD_EXTERNAL_HOST = os.getenv("COORDINADOR_EXTERNAL_HOST")
 POOL_EXTERNAL_HOST = os.getenv("POOL_MANAGER_EXTERNAL_HOST")
 
-
-# =========================
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cpu-scaler")
 
 last_scale_time = 0
 last_seen_cache = {}
-# ---- hysteresis ----
-cpu_below_expected_counter = 0
-CPU_CONFIRM_CYCLES = 3  # cantidad de ciclos consecutivos
-
 
 # ---------- Redis ----------
 def redis_connect():
@@ -183,7 +174,6 @@ def delete_cpu_worker(instance_name):
 
 def reconcile(redis_client):
     global last_scale_time
-    global cpu_below_expected_counter
 
     now = time.time()
 
@@ -195,7 +185,9 @@ def reconcile(redis_client):
 
     alive = get_alive_workers(redis_client)
     base_instances = list_base_cpu_instances()
+
     logger.info("Workers vivos detectados: %d", len(alive))
+
     cpu_alive = 0
     gpu_alive = 0
     near_expiry_cpu = 0
@@ -209,33 +201,29 @@ def reconcile(redis_client):
         if last_seen is None:
             continue
 
-        # 1️⃣ Edad del heartbeat
         age = now - last_seen
         metrics.worker_heartbeat_age_seconds.labels(id=wid, type=wtype).set(age)
 
-        # 2️⃣ Delta entre heartbeats
         prev = last_seen_cache.get(wid)
         if prev is not None:
             delta = last_seen - prev
             metrics.worker_heartbeat_interval_seconds.labels(id=wid, type=wtype).set(
                 delta
             )
+
         last_seen_cache[wid] = last_seen
 
-        # 3️⃣ Cerca de expirar
         if age > settings.HEARTBEAT_TTL * 0.7:
             if wtype == "cpu":
                 near_expiry_cpu += 1
             elif wtype == "gpu":
                 near_expiry_gpu += 1
 
-        # Conteo por tipo
         if wtype == "cpu":
             cpu_alive += 1
         elif wtype == "gpu":
             gpu_alive += 1
 
-        # Info por worker
         metrics.worker_info.labels(
             id=wid,
             type=wtype,
@@ -250,11 +238,6 @@ def reconcile(redis_client):
     metrics.workers_near_expiry.labels(type="cpu").set(near_expiry_cpu)
     metrics.workers_near_expiry.labels(type="gpu").set(near_expiry_gpu)
 
-    # ---- cooldown global ----
-    if now - last_scale_time < settings.SCALE_COOLDOWN:
-        logger.info("Cooldown activo, no se evalúa escalado aún")
-        return
-
     # ---- cálculo de demanda ----
     missing_gpus = max(settings.EXPECTED_GPUS - gpu_alive, 0)
     metrics.gpus_missing.set(missing_gpus)
@@ -267,12 +250,11 @@ def reconcile(redis_client):
 
     metrics.target_cpu_workers.set(target_cpu)
 
-    # ---- estado actual real ----
+    # ---- estado actual ----
     dynamic_instances = list_dynamic_cpu_instances()
+    effective_cpu = len(base_instances) + len(dynamic_instances)
 
     metrics.dynamic_cpu_workers.set(len(dynamic_instances))
-
-    effective_cpu = len(base_instances) + len(dynamic_instances)
 
     logger.info(
         "Estado actual: cpu_alive=%d gpu_alive=%d effective_cpu=%d target_cpu=%d base=%d dinámicos=%d",
@@ -284,53 +266,36 @@ def reconcile(redis_client):
         len(dynamic_instances),
     )
 
-    # =========================================================
-    # HYSTERESIS: SOLO PARA SCALE-UP
-    # =========================================================
-    scale_up_allowed = True
-
-    if effective_cpu < target_cpu:
-        cpu_below_expected_counter += 1
+    # ---- cooldown simétrico ----
+    if now - last_scale_time < settings.SCALE_COOLDOWN:
         logger.info(
-            "CPU efectiva baja (%d < %d). Confirmación %d/%d",
-            effective_cpu,
-            target_cpu,
-            cpu_below_expected_counter,
-            CPU_CONFIRM_CYCLES,
+            "Cooldown activo (%ds), no se escala en este ciclo", settings.SCALE_COOLDOWN
         )
-
-        if cpu_below_expected_counter < CPU_CONFIRM_CYCLES:
-            logger.info(
-                "Faltante de CPU no confirmado (%d/%d). No se escala aún.",
-                cpu_below_expected_counter,
-                CPU_CONFIRM_CYCLES,
-            )
-            scale_up_allowed = False
-    else:
-        if cpu_below_expected_counter != 0:
-            logger.info("CPU efectiva recuperada, reseteando contador de confirmación")
-        cpu_below_expected_counter = 0
+        return
 
     # =========================================================
-    # SCALE-UP (con hysteresis)
+    # SCALE-UP
     # =========================================================
-    if effective_cpu < target_cpu and scale_up_allowed:
+    if effective_cpu < target_cpu:
         to_create = target_cpu - effective_cpu
 
         logger.warning(
-            "Escalando CPU: creando %d workers (actual=%d, target=%d)",
+            "Escalando CPU UP: creando %d workers (actual=%d, target=%d)",
             to_create,
             effective_cpu,
             target_cpu,
         )
 
         metrics.scale_up_total.inc()
+
         for _ in range(to_create):
             create_cpu_worker()
             metrics.vm_created_total.inc()
 
+        last_scale_time = now
+
     # =========================================================
-    # SCALE-DOWN PROPORCIONAL (SIN hysteresis)
+    # SCALE-DOWN
     # =========================================================
     elif effective_cpu > target_cpu and dynamic_instances:
         to_delete = min(
@@ -339,7 +304,7 @@ def reconcile(redis_client):
         )
 
         logger.warning(
-            "Reduciendo CPU: eliminando %d workers dinámicos (actual=%d, target=%d)",
+            "Escalando CPU DOWN: eliminando %d workers dinámicos (actual=%d, target=%d)",
             to_delete,
             effective_cpu,
             target_cpu,
@@ -349,10 +314,10 @@ def reconcile(redis_client):
             delete_cpu_worker(name)
             metrics.vm_deleted_total.inc()
 
+        last_scale_time = now
+
     else:
         logger.info("No se requieren acciones de escalado en este ciclo")
-
-    last_scale_time = now
 
 
 # ---------- Main loop ----------

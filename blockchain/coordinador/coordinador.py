@@ -6,10 +6,10 @@ from prometheus_client import start_http_server
 from redis_client import get_blockchain, get_blockchain_height, update_runtime_config
 import metrics
 import threading
+
 import config.settings as settings
 from redis_client import get_runtime_config
 from consensus_service import procesar_resultado_worker
-
 from queue_client import encolar
 from redis_client import redisConnect
 from storage_client import bucketConnect
@@ -20,6 +20,7 @@ start_http_server(8000)
 
 app = Flask(__name__)
 CORS(app)
+
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] %(message)s",
