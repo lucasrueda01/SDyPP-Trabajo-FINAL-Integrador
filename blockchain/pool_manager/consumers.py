@@ -19,12 +19,13 @@ def start_pool_consumer(redis_client):
             block = json.loads(body)
             alive, _ = get_alive_workers(redis_client)
 
-            ok = dispatch_to_workers(block, alive, channel_pool)
-
             logger.info(
                 "Recibido bloque %s desde pool_tasks",
                 block["blockId"],
             )
+            
+            ok = dispatch_to_workers(block, alive, channel_pool)
+
 
             if ok:
                 ch.basic_ack(method.delivery_tag)

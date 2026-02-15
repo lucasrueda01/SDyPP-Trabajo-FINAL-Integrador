@@ -26,8 +26,8 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-EXCHANGE_COMPETITIVE = "blocks_competitive"  # fanout
-EXCHANGE_COOPERATIVE = "blocks_cooperative"  # topic
+EXCHANGE_COMPETITIVE = "blocks_competitive" 
+EXCHANGE_COOPERATIVE = "blocks_cooperative"  
 QUEUE_COOPERATIVE = "blocks_queue"
 
 hostCoordinador = "coordinator." + settings.COORDINADOR_HOST + ".nip.io"
@@ -158,7 +158,7 @@ def declare_queues(channel):
     # -------- COOPERATIVO --------
     channel.exchange_declare(
         exchange=EXCHANGE_COOPERATIVE,
-        exchange_type="topic",
+        exchange_type="fanout",
         durable=True,
     )
 

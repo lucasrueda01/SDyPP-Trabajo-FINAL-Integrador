@@ -159,7 +159,7 @@ def declare_queues(channel):
     # -------- COOPERATIVO --------
     channel.exchange_declare(
         exchange=EXCHANGE_COOPERATIVE,
-        exchange_type="topic",
+        exchange_type="fanout",
         durable=True,
     )
 

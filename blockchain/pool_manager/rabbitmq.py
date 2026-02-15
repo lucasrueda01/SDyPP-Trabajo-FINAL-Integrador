@@ -28,7 +28,7 @@ def queue_connect(retries=10, delay=3):
             # Exchanges
             channel.exchange_declare(
                 exchange="blocks_cooperative",
-                exchange_type="topic",
+                exchange_type="fanout",
                 durable=True,
             )
 
