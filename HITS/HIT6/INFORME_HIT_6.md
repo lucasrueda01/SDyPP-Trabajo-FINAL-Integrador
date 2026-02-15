@@ -6,7 +6,7 @@ Probar diferentes longitudes de prefijo en el hash MD5 para ver cuál es el pref
 **Qué se hizo**  
  Usamos el minero GPU que ya teníamos y ejecutamos pruebas con los siguientes prefijos: “0”, “00”, “000”, “0000”, “00000”, “000000”, “0000000”. Fijamos el mismo rango de búsqueda en todas las pruebas: de 0 a 200000. Para cada prefijo ejecutamos el minero y tomamos: el nonce encontrado (si lo hubo), el hash resultante, la cantidad de intentos y el tiempo de ejecución.
 
-**Resultados (ejecución reciente)**
+**Resultados**
 
 | Prefijo   | Nonce encontrado | Intentos | Tiempo (s) | Hashes/s (aprox.) |
 | --------- | ---------------: | -------: | ---------: | ----------------: |
