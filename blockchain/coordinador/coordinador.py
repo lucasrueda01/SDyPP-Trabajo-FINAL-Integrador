@@ -35,14 +35,6 @@ logger = logging.getLogger("coordinator")
 redisConnect()
 bucket = bucketConnect(settings.BUCKET_NAME)
 
-# Configuración de parámetros de minería en runtime
-runtime_config = {
-    "fragment_percent": settings.FRAGMENT_PERCENT,
-    "max_random": settings.MAX_RANDOM,
-    "mining_mode": "cooperative" if settings.COOPERATIVE_MINING else "competitive",
-    "difficulty": 0,  # Si es 0 se calcula dependiendo cantidad de GPUs
-}
-
 # Background thread
 threading.Thread(target=processPackages, args=(bucket,), daemon=True).start()
 
@@ -86,6 +78,7 @@ def update_config():
     data = request.json
     update_runtime_config(data)
     return jsonify({"status": "updated"})
+
 
 @app.route("/config", methods=["GET"])
 def get_config():
