@@ -108,6 +108,16 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
+      # 🌐 Create blockchain-ingress-config
+      # ====================================
+      - name: Create Ingress ConfigMap
+        run: |
+          kubectl create configmap blockchain-ingress-config \
+            --namespace blockchain-infra \
+            --from-literal=INGRESS_HOST=${INGRESS_IP}.nip.io \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # ====================================
       # 1️⃣ Core (Redis + RabbitMQ)
       # ====================================
       - name: Apply Core Manifests
