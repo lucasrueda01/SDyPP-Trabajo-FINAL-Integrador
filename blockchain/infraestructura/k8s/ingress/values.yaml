@@ -6,8 +6,13 @@ controller:
     type: LoadBalancer
     externalTrafficPolicy: Local
     loadBalancerIP: ${INGRESS_IP}
-    extraPorts:
-      - name: amqp
-        port: 5672
-        targetPort: 5672
-        protocol: TCP
+
+    ports:
+      http: 80
+      https: 443
+      amqp: 5672
+
+    targetPorts:
+      http: http
+      https: https
+      amqp: 5672
