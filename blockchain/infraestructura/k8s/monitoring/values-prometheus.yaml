@@ -1,4 +1,6 @@
 grafana:
+  nodeSelector:
+    node-role: infra
   enabled: true
   adminUser: admin
   adminPassword: admin123
@@ -18,6 +20,8 @@ grafana:
 
 prometheus:
   prometheusSpec:
+    nodeSelector:
+      node-role: infra
     retention: 12h
     resources:
       requests:
@@ -36,6 +40,8 @@ prometheus:
               storage: 10Gi
 
 alertmanager:
+  nodeSelector:
+    node-role: infra
   enabled: false
 
 kubeControllerManager:

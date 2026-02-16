@@ -3,6 +3,10 @@ deploymentMode: SingleBinary
 loki:
   auth_enabled: false
 
+  nodeSelector:
+    node-role: infra
+
+
   commonConfig:
     replication_factor: 1
 
@@ -30,7 +34,6 @@ loki:
       memory: 600Mi
       cpu: 500m
 
-# 🔥 MUY IMPORTANTE: desactivar todo lo demás
 singleBinary:
   replicas: 1
 
