@@ -31,9 +31,6 @@ resource "google_container_cluster" "primary" {
       enabled = false
     }
 
-    component_config {
-    enable_components = []
-  }
 }
 
 
