@@ -55,18 +55,15 @@ jobs:
 
             # ====================================
 
-      # 🐰 Install RabbitMQ Cluster Operator
+            # ====================================
+
+      # 🐰 Install RabbitMQ Cluster Operator (kubectl apply)
       # ====================================
-      - name: Install RabbitMQ Operator
+      - name: Install RabbitMQ Cluster Operator
         run: |
-          helm repo add rabbitmq https://charts.rabbitmq.com
-          helm repo update
+          kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
 
-          helm upgrade --install rabbitmq-operator rabbitmq/cluster-operator \
-            -n rabbitmq-system \
-            --create-namespace
-
-      - name: Wait for RabbitMQ Operator
+      - name: Wait for RabbitMQ Operator to be ready
         run: |
           kubectl rollout status deployment/rabbitmq-cluster-operator \
             -n rabbitmq-system --timeout=300s
