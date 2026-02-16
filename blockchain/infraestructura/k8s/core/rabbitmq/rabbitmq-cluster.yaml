@@ -4,7 +4,7 @@ metadata:
   name: rabbitmq
   namespace: blockchain-infra
 spec:
-  replicas: 3
+  replicas: 1
 
   resources:
     requests:
@@ -31,6 +31,9 @@ spec:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: infra
+
             containers:
               - name: rabbitmq
                 resources:

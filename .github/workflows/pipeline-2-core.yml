@@ -53,6 +53,24 @@ jobs:
             --zone $CLUSTER_ZONE \
             --project $PROJECT_ID
 
+            # ====================================
+
+      # 🐰 Install RabbitMQ Cluster Operator
+      # ====================================
+      - name: Install RabbitMQ Operator
+        run: |
+          helm repo add rabbitmq https://charts.rabbitmq.com
+          helm repo update
+
+          helm upgrade --install rabbitmq-operator rabbitmq/cluster-operator \
+            -n rabbitmq-system \
+            --create-namespace
+
+      - name: Wait for RabbitMQ Operator
+        run: |
+          kubectl rollout status deployment/rabbitmq-cluster-operator \
+            -n rabbitmq-system --timeout=300s
+
       # ===============================
       # 1️⃣ Instalar Ingress NGINX
       # ===============================
