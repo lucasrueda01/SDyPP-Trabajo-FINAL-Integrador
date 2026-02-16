@@ -53,10 +53,12 @@ jobs:
             --zone $CLUSTER_ZONE \
             --project $PROJECT_ID
 
-            # ====================================
+      # 📁 Namespace monitoring
+      - name: Create monitoring namespace
+        run: |
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-            # ====================================
-
+      # ====================================
       # 🐰 Install RabbitMQ Cluster Operator (kubectl apply)
       # ====================================
       - name: Install RabbitMQ Cluster Operator
@@ -130,11 +132,6 @@ jobs:
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
           helm repo update
-
-      # 📁 Namespace monitoring
-      - name: Create monitoring namespace
-        run: |
-          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
       # 🚀 Prometheus + Grafana
       - name: Install kube-prometheus-stack
