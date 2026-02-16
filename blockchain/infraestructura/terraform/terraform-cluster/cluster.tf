@@ -30,6 +30,10 @@ resource "google_container_cluster" "primary" {
     managed_prometheus {
       enabled = false
     }
+
+    component_config {
+    enable_components = []
+  }
 }
 
 
