@@ -19,6 +19,14 @@ grafana:
       operator: "Equal"
       value: "infra"
       effect: "NoSchedule"
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: standard-rwo
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+
 
 prometheus:
   prometheusSpec:

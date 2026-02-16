@@ -26,4 +26,11 @@ resource "google_container_cluster" "primary" {
     enable_private_endpoint = false
   }
 
+  monitoring_config {
+    managed_prometheus {
+      enabled = false
+    }
+}
+
+
 }
