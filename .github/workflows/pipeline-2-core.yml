@@ -95,9 +95,17 @@ jobs:
           --create-namespace \
           -f $K8S_INGRESS_DIR/values.yaml
 
+
+      - name: Patch Ingress Service (Rabbit TCP)
+        run: |
+          envsubst < $K8S_INGRESS_DIR/ingress-nginx-service.yaml | kubectl apply -f -
+
+
       - name: Restart Ingress Controller
         run: |
           kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx
+
+      
 
       # ====================================
       # 🔐 Create GHCR Image Pull Secret
