@@ -93,6 +93,19 @@ jobs:
             --namespace ingress-nginx \
             --from-literal=5672=blockchain-infra/rabbitmq:5672 \
             --dry-run=client -o yaml | kubectl apply -f -
+      
+
+      # ====================================
+      # 🔐 Create GHCR Image Pull Secret
+      # ====================================
+      - name: Create GHCR Secret
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ secrets.GHCR_USERNAME }} \
+            --docker-password=${{ secrets.GHCR_TOKEN }} \
+            --namespace blockchain-infra \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
       # 1️⃣ Core (Redis + RabbitMQ)

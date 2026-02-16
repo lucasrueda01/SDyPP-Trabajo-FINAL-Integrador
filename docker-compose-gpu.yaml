@@ -7,10 +7,10 @@ services:
     environment:
       RABBIT_USER: blockchain
       RABBIT_PASSWORD : blockchain123
-      RABBIT_HOST : 136.115.21.88
+      RABBIT_HOST : 136.119.226.21
       RABBIT_VHOST : blockchain
-      COORDINADOR_HOST: 136.115.21.88
-      POOL_MANAGER_HOST: 136.115.21.88
+      COORDINADOR_HOST: 136.119.226.21
+      POOL_MANAGER_HOST: 136.119.226.21
       TZ: "America/Argentina/Buenos_Aires"
 
     # Habilita GPU (Docker Desktop + WSL2)
