@@ -16,6 +16,11 @@ spec:
     spec:
       nodeSelector:
         node-role: infra
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
       containers:
         - name: redis
           image: redis:7
