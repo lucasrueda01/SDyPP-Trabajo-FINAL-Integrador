@@ -24,11 +24,11 @@ loki:
       directory: /var/loki/chunks
   resources:
     requests:
-      memory: 200Mi
-      cpu: 100m
+      memory: 300Mi
+      cpu: 200m
     limits:
-      memory: 400Mi
-      cpu: 300m
+      memory: 600Mi
+      cpu: 500m
 
 # 🔥 MUY IMPORTANTE: desactivar todo lo demás
 singleBinary:
