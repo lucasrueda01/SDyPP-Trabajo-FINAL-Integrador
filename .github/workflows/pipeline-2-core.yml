@@ -63,6 +63,8 @@ jobs:
       # ===============================
       - name: Create TCP ConfigMap for RabbitMQ
         run: |
+          kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+
           kubectl create configmap tcp-services \
             --namespace ingress-nginx \
             --from-literal=5672=blockchain-infra/rabbitmq:5672 \
@@ -89,15 +91,13 @@ jobs:
           helm repo update
 
           helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-            --namespace ingress-nginx \
-            --create-namespace \
-            -f $K8S_INGRESS_DIR/values.yaml \
-            --set controller.service.loadBalancerIP=$INGRESS_IP \
-            --set controller.extraArgs.tcp-services-configmap=ingress-nginx/tcp-services \
-            --set controller.service.extraPorts[0].name=rabbitmq \
-            --set controller.service.extraPorts[0].port=5672 \
-            --set controller.service.extraPorts[0].targetPort=5672 \
-            --set controller.service.extraPorts[0].protocol=TCP
+          --namespace ingress-nginx \
+          --create-namespace \
+          -f $K8S_INGRESS_DIR/values.yaml
+
+      - name: Restart Ingress Controller
+        run: |
+          kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx
 
       # ====================================
       # 🔐 Create GHCR Image Pull Secret
