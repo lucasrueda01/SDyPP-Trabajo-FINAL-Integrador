@@ -35,3 +35,11 @@ spec:
                 name: blockchain-app-config
             - secretRef:
                 name: rabbitmq-credentials
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 800m
+              memory: 512Mi
+
