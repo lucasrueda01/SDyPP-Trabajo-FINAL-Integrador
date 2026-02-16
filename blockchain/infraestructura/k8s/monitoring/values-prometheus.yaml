@@ -4,14 +4,11 @@ grafana:
   enabled: true
   adminUser: admin
   adminPassword: admin123
-
   service:
     type: ClusterIP
-
   sidecar:
     datasources:
       enabled: true
-
   additionalDataSources:
     - name: Loki
       type: loki
@@ -40,9 +37,14 @@ prometheus:
               storage: 10Gi
 
 alertmanager:
+  enabled: false
+  alertmanagerSpec:
+    nodeSelector:
+      node-role: infra
+
+prometheusOperator:
   nodeSelector:
     node-role: infra
-  enabled: false
 
 kubeControllerManager:
   enabled: false
@@ -52,4 +54,3 @@ kubeEtcd:
   enabled: false
 kubeStateMetrics:
   enabled: false
-
