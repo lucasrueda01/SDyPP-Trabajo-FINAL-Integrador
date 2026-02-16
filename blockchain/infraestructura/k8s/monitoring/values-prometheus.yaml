@@ -18,7 +18,14 @@ grafana:
 
 prometheus:
   prometheusSpec:
-    retention: 7d
+    retention: 6h
+    resources:
+      requests:
+        memory: 300Mi
+        cpu: 200m
+      limits:
+        memory: 500Mi
+        cpu: 500m
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -37,3 +44,6 @@ kubeScheduler:
   enabled: false
 kubeEtcd:
   enabled: false
+kubeStateMetrics:
+  enabled: false
+

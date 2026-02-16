@@ -97,6 +97,13 @@ def connect_rabbit():
                 rabbitUser,
                 rabbitPassword,
             )
+            
+            # Para que no se caiga la conexión por inactividad durante el minado, configuramos opciones TCP Keepalive
+            tcp_options = {
+                "TCP_KEEPIDLE": 60,
+                "TCP_KEEPINTVL": 30,
+                "TCP_KEEPCNT": 5,
+            }
 
             params = pika.ConnectionParameters(
                 host=hostRabbit,
@@ -108,6 +115,7 @@ def connect_rabbit():
                 connection_attempts=10,
                 retry_delay=5,
                 socket_timeout=10,
+                tcp_options=tcp_options,
             )
 
             connection = pika.BlockingConnection(params)

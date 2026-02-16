@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \
  && rm -rf /var/lib/apt/lists/*
 
+ENV TZ=America/Argentina/Buenos_Aires
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # -----------------------
 # Copiamos TODO el worker GPU
 # (contexto = blockchain/minero/gpu)

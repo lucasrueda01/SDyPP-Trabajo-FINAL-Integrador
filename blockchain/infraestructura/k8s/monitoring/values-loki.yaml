@@ -22,6 +22,13 @@ loki:
   storage_config:
     filesystem:
       directory: /var/loki/chunks
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 300m
 
 # 🔥 MUY IMPORTANTE: desactivar todo lo demás
 singleBinary:
@@ -44,7 +51,6 @@ chunksCache:
 
 resultsCache:
   enabled: false
-
 
 # Persistencia
 persistence:
