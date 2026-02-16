@@ -6,6 +6,12 @@ loki:
   nodeSelector:
     node-role: infra
 
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
+
 
   commonConfig:
     replication_factor: 1

@@ -14,11 +14,21 @@ grafana:
       type: loki
       access: proxy
       url: http://loki.monitoring.svc.cluster.local:3100
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
 
 prometheus:
   prometheusSpec:
     nodeSelector:
       node-role: infra
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
     retention: 12h
     resources:
       requests:
@@ -41,10 +51,20 @@ alertmanager:
   alertmanagerSpec:
     nodeSelector:
       node-role: infra
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
 
 prometheusOperator:
   nodeSelector:
     node-role: infra
+  tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "infra"
+      effect: "NoSchedule"
 
 kubeControllerManager:
   enabled: false

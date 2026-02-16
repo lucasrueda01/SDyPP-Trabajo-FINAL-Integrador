@@ -25,6 +25,13 @@ spec:
       serviceAccountName: cpu-scaler
       restartPolicy: Always
 
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
+
+
       volumes:
         - name: worker-cpu-script
           configMap:

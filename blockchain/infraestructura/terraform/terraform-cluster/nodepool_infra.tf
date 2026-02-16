@@ -14,6 +14,12 @@ resource "google_container_node_pool" "infra" {
       "https://www.googleapis.com/auth/cloud-platform",
     ]
 
+    taint {
+      key    = "dedicated"
+      value  = "infra"
+      effect = "NO_SCHEDULE"
+  }
+
     labels = {
       node-role = "infra"
     }

@@ -9,3 +9,10 @@ spec:
   ports:
     - port: 6379
       targetPort: 6379
+
+  tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "infra"
+    effect: "NoSchedule"
+
