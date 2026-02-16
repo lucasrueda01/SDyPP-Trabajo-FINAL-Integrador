@@ -5,7 +5,7 @@ on:
 
 env:
   CLUSTER_NAME: cluster-blockchain
-  CLUSTER_REGION: us-central1
+  CLUSTER_ZONE: us-central1-a
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   TF_WORKING_DIR: blockchain/infraestructura/terraform/terraform-cluster
   K8S_APPS_DIR: blockchain/infraestructura/k8s/apps
@@ -77,7 +77,7 @@ jobs:
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
-            --region $CLUSTER_REGION \
+            --zone $CLUSTER_ZONE \
             --project $PROJECT_ID
 
       # ====================================
