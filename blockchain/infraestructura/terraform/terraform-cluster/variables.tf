@@ -21,4 +21,4 @@ variable "apps_initial_nodes" { default = 1 }
 variable "apps_min_nodes" { default = 1 }
 variable "apps_max_nodes" { default = 2 }
 variable "infra_min_nodes" { default = 1 }
-variable "infra_max_nodes" { default = 2 }
+variable "infra_max_nodes" { default = 3 }
