@@ -9,6 +9,7 @@ resources:
   # Coordinator
   - coordinator/coordinator-deployment.yaml
   - coordinator/coordinator-service.yaml
+  - coordinator/coordinator-hpa.yaml
 
   # CPU Scaler
   - cpu-scaler/cpu-scaler-deployment.yaml
@@ -18,6 +19,7 @@ resources:
   # Pool Manager
   - pool-manager/pool-manager-deployment.yaml
   - pool-manager/pool-manager-service.yaml
+  - pool-manager/pool-manager-hpa.yaml
 
   # Secret de acceso a Rabbit
   - rabbitmq/rabbitmq-secret-apps.yaml
