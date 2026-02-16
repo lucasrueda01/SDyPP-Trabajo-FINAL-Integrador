@@ -82,6 +82,13 @@ jobs:
           kubectl rollout status deployment/rabbitmq-cluster-operator \
             -n rabbitmq-system --timeout=300s
 
+      # 🧹 Delete existing ingress Service to avoid Helm conflict
+      - name: Delete existing ingress Service (avoid Helm conflict)
+        run: |
+          kubectl delete svc ingress-nginx-controller \
+            -n ingress-nginx \
+            --ignore-not-found=true
+
       # ===============================
       # 1️⃣ Instalar Ingress NGINX
       # ===============================
@@ -95,17 +102,13 @@ jobs:
           --create-namespace \
           -f $K8S_INGRESS_DIR/values.yaml
 
-
       - name: Patch Ingress Service (Rabbit TCP)
         run: |
           envsubst < $K8S_INGRESS_DIR/ingress-nginx-service.yaml | kubectl apply -f -
 
-
       - name: Restart Ingress Controller
         run: |
           kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx
-
-      
 
       # ====================================
       # 🔐 Create GHCR Image Pull Secret
