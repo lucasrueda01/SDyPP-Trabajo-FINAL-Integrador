@@ -1,7 +1,7 @@
 resource "google_container_node_pool" "apps" {
   name       = "${var.cluster_name}-apps-pool"
   cluster    = google_container_cluster.primary.name
-  location   = var.region
+  location   = var.zone
   initial_node_count = var.apps_initial_nodes
 
   node_config {
