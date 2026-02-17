@@ -30,6 +30,8 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("redis").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("google").setLevel(logging.WARNING)
+
 
 logger = logging.getLogger("coordinator")
 

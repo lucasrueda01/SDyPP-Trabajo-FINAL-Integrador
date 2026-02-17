@@ -177,11 +177,8 @@ jobs:
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
                 -n monitoring \
                 --create-namespace \
-                --set grafana.service.type=ClusterIP \
-                --set grafana.additionalDataSources[0].name=Loki \
-                --set grafana.additionalDataSources[0].type=loki \
-                --set grafana.additionalDataSources[0].access=proxy \
-                --set grafana.additionalDataSources[0].url=http://loki.monitoring.svc.cluster.local:3100
+                -f $K8S_MONITORING_DIR/values-prometheus.yaml
+
 
       # 🚀 Loki
       - name: Install Loki
@@ -198,6 +195,7 @@ jobs:
             grafana/promtail \
             -n monitoring \
             -f $K8S_MONITORING_DIR/values-promtail.yaml
+
 
       # ⏳ Esperar Grafana
       - name: Wait for Grafana

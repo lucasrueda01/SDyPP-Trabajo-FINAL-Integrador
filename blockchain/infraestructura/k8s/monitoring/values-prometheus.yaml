@@ -1,6 +1,13 @@
 grafana:
   nodeSelector:
     node-role: infra
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 500Mi
+      cpu: 300m
   enabled: true
   adminUser: admin
   adminPassword: admin123
@@ -26,17 +33,18 @@ grafana:
     accessModes:
       - ReadWriteOnce
     size: 5Gi
-
+  deploymentStrategy:
+    type: Recreate
 
 prometheus:
   prometheusSpec:
     nodeSelector:
       node-role: infra
     tolerations:
-    - key: "dedicated"
-      operator: "Equal"
-      value: "infra"
-      effect: "NoSchedule"
+      - key: "dedicated"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
     retention: 12h
     resources:
       requests:
@@ -60,10 +68,10 @@ alertmanager:
     nodeSelector:
       node-role: infra
     tolerations:
-    - key: "dedicated"
-      operator: "Equal"
-      value: "infra"
-      effect: "NoSchedule"
+      - key: "dedicated"
+        operator: "Equal"
+        value: "infra"
+        effect: "NoSchedule"
 
 prometheusOperator:
   nodeSelector:

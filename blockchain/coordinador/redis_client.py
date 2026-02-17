@@ -97,3 +97,4 @@ def update_runtime_config(new_config):
     for key, value in new_config.items():
         pipe.hset("system:config", key, value)
     pipe.execute()
+    logger.debug("Runtime config actualizada: %s", new_config)

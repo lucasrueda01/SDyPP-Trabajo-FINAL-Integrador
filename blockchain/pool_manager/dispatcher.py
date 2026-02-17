@@ -68,7 +68,13 @@ def dispatch_to_workers(block, alive_workers, channel):
     # MODO COMPETITIVO
     if mining_mode == "competitive":
         logger.debug("Despachando %s en COMPETITIVO", block_id)
-
+        
+        logger.debug("Bloque %s: Enviando a todos los workers -> nonce %d-%d",
+            block_id,
+            block.get("nonce_start", 0),
+            block.get("nonce_end", settings.MAX_RANDOM),
+        )
+        
         safe_publish(
             channel,
             "blocks_competitive",
@@ -88,7 +94,8 @@ def dispatch_to_workers(block, alive_workers, channel):
 
     for i, payload in enumerate(payloads):
         logger.debug(
-            "Asignando fragmento %d/%d -> nonce %d-%d",
+            "Bloque %s: Asignando fragmento %d/%d -> nonce %d-%d",
+            block_id,
             i + 1,
             len(payloads),
             payload["nonce_start"],
