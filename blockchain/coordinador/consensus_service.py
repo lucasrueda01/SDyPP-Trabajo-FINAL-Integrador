@@ -1,5 +1,4 @@
 import logging
-from blockchain.minero import cpu
 import metrics
 from redis_client import (
     get_redis,
