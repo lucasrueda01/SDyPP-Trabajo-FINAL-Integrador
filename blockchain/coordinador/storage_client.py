@@ -13,6 +13,7 @@ def bucketConnect(bucketName):
 
 
 def subirBlock(bucket, block):
+    logger.debug(f"Subiendo bloque {block['blockId']} a storage")
     blob = bucket.blob(f"block_{block['blockId']}.json")
     blob.upload_from_string(json.dumps(block), content_type="application/json")
 

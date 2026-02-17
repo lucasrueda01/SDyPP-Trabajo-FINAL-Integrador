@@ -1,4 +1,5 @@
 import logging
+from blockchain.minero import cpu
 import metrics
 from redis_client import (
     get_redis,
@@ -14,10 +15,26 @@ logger = logging.getLogger("coordinator")
 
 
 def procesar_resultado_worker(data, bucket):
+    # Bloque recibido del worker:
+    # {
+    #     "blockId": blockId,
+    #     "workerId": worker_id,
+    #     "type": "cpu o gpu",
+    #     "processingTime": processing_time,
+    #     "hashRate": hashes por segundo,
+    #     "hash": hash encontrado,
+    #     "result": nonce encontrado
+    # }
+
     redisClient = get_redis()
 
     if not data or not data.get("result"):
-        return {"message": "Resultado inválido"}, 202
+        logger.debug(
+            "Resultado inválido recibido del worker %s:  | Bloque %s",
+            data.get("workerId", "unknown"),
+            data.get("blockId", "unknown"),
+        )
+        return {"message": "Resultado invalido"}, 202
 
     block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")
@@ -33,6 +50,7 @@ def procesar_resultado_worker(data, bucket):
     if status and status.decode() == "SEALED":
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
+        logger.debug("Bloque %s ya cerrado. Worker: %s", block_id, worker_id)
         return {"message": "Bloque ya cerrado"}, 202
 
     # -----------------------
@@ -41,6 +59,7 @@ def procesar_resultado_worker(data, bucket):
     if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
         metrics.blocks_rejected_total.inc()
         metrics.record_task_result(worker_type=worker_type, accepted=False)
+        logger.debug("Bloque %s ya reclamado. Worker: %s", block_id, worker_id)
         return {"message": "Bloque ya reclamado"}, 202
 
     try:
@@ -53,6 +72,7 @@ def procesar_resultado_worker(data, bucket):
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
+            logger.debug("Bloque %s ya cerrado. Worker: %s", block_id, worker_id)
             return {"message": "Bloque ya cerrado"}, 202
 
         # -----------------------
@@ -65,7 +85,10 @@ def procesar_resultado_worker(data, bucket):
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
-            return {"message": "Hash inválido"}, 202
+            logger.debug(
+                "Bloque %s tiene hash inválido. Worker: %s", block_id, worker_id
+            )
+            return {"message": "Hash invalido"}, 202
 
         # -----------------------
         # 5) Verificar existencia
@@ -75,6 +98,7 @@ def procesar_resultado_worker(data, bucket):
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
+            logger.debug("Bloque %s ya existe. Worker: %s", block_id, worker_id)
             return {"message": "Bloque ya existe"}, 202
 
         # -----------------------
@@ -101,7 +125,7 @@ def procesar_resultado_worker(data, bucket):
         # -----------------------
         borrarBlock(bucket, block_id)
 
-        logger.info("Bloque %s aceptado. Ganador: %s", block_id, worker_id)
+        logger.debug("Bloque %s aceptado. Ganador: %s", block_id, worker_id)
 
         metrics.blocks_accepted_total.inc()
         metrics.record_task_result(

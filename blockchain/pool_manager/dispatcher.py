@@ -42,6 +42,17 @@ def fragmentar(block, total_workers):
 
 
 def dispatch_to_workers(block, alive_workers, channel):
+    # Bloque recibido desde coordinador:
+    # {
+    #  "blockId": id del bloque,
+    #  "transactions": [...],
+    #  "prefijo": "00",
+    #  "baseStringChain": "string",
+    #  "blockchainContent": "string",
+    #  "mining_mode": "cooperative" o "competitive",
+    #  "fragment_percent": 0.5 (opcional, solo para cooperative)
+    # }
+    
     block_id = block["blockId"]
 
     if not alive_workers:
@@ -56,7 +67,7 @@ def dispatch_to_workers(block, alive_workers, channel):
 
     # MODO COMPETITIVO
     if mining_mode == "competitive":
-        logger.info("Despachando %s en COMPETITIVO", block_id)
+        logger.debug("Despachando %s en COMPETITIVO", block_id)
 
         safe_publish(
             channel,
@@ -68,7 +79,7 @@ def dispatch_to_workers(block, alive_workers, channel):
         return True
 
     # MODO COOPERATIVO
-    logger.info("Despachando %s en COOPERATIVO", block_id)
+    logger.debug("Despachando %s en COOPERATIVO", block_id)
 
     # total_workers ahora es simple
     total_workers = len(alive_workers)
@@ -76,7 +87,7 @@ def dispatch_to_workers(block, alive_workers, channel):
     payloads = fragmentar(block, total_workers)
 
     for i, payload in enumerate(payloads):
-        logger.info(
+        logger.debug(
             "Asignando fragmento %d/%d -> nonce %d-%d",
             i + 1,
             len(payloads),

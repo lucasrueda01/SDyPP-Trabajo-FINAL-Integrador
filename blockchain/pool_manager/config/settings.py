@@ -37,8 +37,6 @@ COORDINADOR_PORT = int(os.getenv("COORDINADOR_PORT", 5000))
 # ======================
 MAX_RANDOM = int(os.getenv("MAX_RANDOM", 99_999_999))
 
-DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
-
 # ======================
 # Pool Manager
 # ======================

@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 # ======================
 # Redis
 # ======================

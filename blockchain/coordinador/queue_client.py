@@ -53,7 +53,7 @@ def encolar(transaction):
     connection, channel = queueConnect()
     try:
         props = pika.BasicProperties(delivery_mode=2)
-
+        logger.debug(f"Encolando transacción: {transaction}")
         channel.basic_publish(
             exchange="",
             routing_key="QueueTransactions",
@@ -77,3 +77,4 @@ def publicar_a_pool_manager(block, channel):
         body=json.dumps(block),
         properties=props,
     )
+    logger.debug(f"Bloque {block['blockId']} publicado a pool manager")

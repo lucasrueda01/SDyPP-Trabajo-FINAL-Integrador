@@ -40,14 +40,6 @@ errors_total = Counter(
 )
 
 # =====================
-# Workers / capacity
-# =====================
-gpus_alive = Gauge(
-    "coordinator_gpus_alive",
-    "Cantidad de workers GPU vivos",
-)
-
-# =====================
 # Results from workers (CPU / GPU)
 # =====================
 tasks_total = Counter(

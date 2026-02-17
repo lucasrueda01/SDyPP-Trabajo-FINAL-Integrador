@@ -26,7 +26,6 @@ def start_pool_consumer(redis_client):
             
             ok = dispatch_to_workers(block, alive, channel_pool)
 
-
             if ok:
                 ch.basic_ack(method.delivery_tag)
                 logger.info("Bloque %s despachado correctamente", block["blockId"])

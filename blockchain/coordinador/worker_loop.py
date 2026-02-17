@@ -19,7 +19,6 @@ def processPackages(bucket):
         try:
             txs = []
 
-            metrics.gpus_alive.set(gpus_vivas())
             metrics.update_uptime()
 
             for _ in range(settings.MAX_TRANSACTIONS_PER_BLOCK):
@@ -66,11 +65,26 @@ def processPackages(bucket):
                 if runtime_config["fragment_percent"]:
                     block["fragment_percent"] = runtime_config["fragment_percent"]
 
+                logger.debug(
+                    f"Bloque {blockId} creado con {len(txs)} transacciones, dificultad {difficulty}, modo minería: {block.get('mining_mode', 'n/a')}"
+                )
+
                 subirBlock(bucket, block)
                 publicar_a_pool_manager(block, channel)
 
             connection.process_data_events(time_limit=1)
             time.sleep(settings.PROCESSING_TIME)
+
+            # Bloque resultante hacia pool manager:
+            # {
+            #  "blockId": id del bloque,
+            #  "transactions": [...],
+            #  "prefijo": "00",
+            #  "baseStringChain": "string",
+            #  "blockchainContent": "string",
+            #  "mining_mode": "cooperative" o "competitive",
+            #  "fragment_percent": 0.5 (opcional, solo para cooperative)
+            # }
 
         except Exception:
             logger.exception("Error en processPackages")
