@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rabbitmq-monitor
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - blockchain-infra
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  endpoints:
+    - port: prometheus
+      interval: 10s
