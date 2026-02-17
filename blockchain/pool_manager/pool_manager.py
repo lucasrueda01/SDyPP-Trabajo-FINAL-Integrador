@@ -11,11 +11,8 @@ import metrics
 app = Flask(__name__)
 redis_client = redis_connect()
 
-LOG_LEVEL = logging.DEBUG
-
-
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=logging.DEBUG,
     format="[%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
