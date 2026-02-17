@@ -9,6 +9,7 @@ import traceback
 
 logger = logging.getLogger("pool-manager")
 
+
 def start_pool_consumer(redis_client):
     try:
         connection, channel_pool = queue_connect()
@@ -17,18 +18,27 @@ def start_pool_consumer(redis_client):
         def on_message(ch, method, properties, body):
 
             block = json.loads(body)
-            alive, _ = get_alive_workers(redis_client)
-
+            block_id = block["blockId"]
             logger.info(
                 "Recibido bloque %s desde pool_tasks",
-                block["blockId"],
+                block_id,
             )
-            
+
+            # Si el bloque ya está sellado, no lo despachamos. 
+            # Esto es para evitar que se intente procesar un bloque que ya fue resuelto por otro worker.
+            status = redis_client.get(f"block:{block_id}:status")
+            if status and status.decode() == "SEALED":
+                logger.debug("Bloque %s ya resuelto. No se despacha.", block_id)
+                ch.basic_ack(method.delivery_tag)
+                return
+
+            alive, _ = get_alive_workers(redis_client)
+
             ok = dispatch_to_workers(block, alive, channel_pool)
 
             if ok:
                 ch.basic_ack(method.delivery_tag)
-                logger.info("Bloque %s despachado correctamente", block["blockId"])
+                logger.info("Bloque %s despachado correctamente", block_id)
             else:
                 time.sleep(5)
                 ch.basic_nack(method.delivery_tag, requeue=True)
