@@ -1,4 +1,4 @@
-%%writefile ejemplo.cu
+//%%writefile ejemplo.cu
 
 #include <iostream>
 #include <thrust/host_vector.h>

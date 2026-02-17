@@ -1,4 +1,4 @@
-%%writefile hola_mundo.cu
+//%%writefile hola_mundo.cu
 #include <cstdio>
 #include <cuda_runtime.h>
 

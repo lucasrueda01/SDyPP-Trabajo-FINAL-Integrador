@@ -1,4 +1,4 @@
-%%writefile pruebas_hit_7_cpu.py
+#%%writefile pruebas_hit_7_cpu.py
 import sys
 import time
 from statistics import mean

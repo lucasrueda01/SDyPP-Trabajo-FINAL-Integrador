@@ -1,4 +1,4 @@
-%%writefile md5_gpu.cu
+//%%writefile md5_gpu.cu
 
 #include <cstdio>
 #include <cstdlib>

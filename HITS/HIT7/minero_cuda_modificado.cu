@@ -1,4 +1,4 @@
-%%writefile minero_cuda_modificado.cu
+//%%writefile minero_cuda_modificado.cu
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

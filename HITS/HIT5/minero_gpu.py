@@ -1,4 +1,4 @@
-%%writefile minero_gpu.py
+#%%writefile minero_gpu.py
 import subprocess
 import sys
 from pathlib import Path
