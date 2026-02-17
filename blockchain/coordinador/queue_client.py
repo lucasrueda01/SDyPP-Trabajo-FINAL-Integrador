@@ -7,8 +7,8 @@ import config.settings as settings
 logger = logging.getLogger("coordinator")
 
 
-def queueConnect(retries=10, delay=3):
-    for _ in range(retries):
+def queueConnect(delay=5):
+    while True:
         try:
             logger.info("Conectando a RabbitMQ...")
 
@@ -40,13 +40,16 @@ def queueConnect(retries=10, delay=3):
                 arguments={"x-queue-type": "quorum"},
             )
 
+            logger.info("Conectado a RabbitMQ correctamente")
             return connection, channel
 
-        except Exception:
-            logger.warning("RabbitMQ no disponible, reintentando...")
+        except Exception as e:
+            logger.warning(
+                "RabbitMQ no disponible (%s). Reintentando en %ss...",
+                e,
+                delay,
+            )
             time.sleep(delay)
-
-    raise Exception("No se pudo conectar a RabbitMQ")
 
 
 def encolar(transaction):

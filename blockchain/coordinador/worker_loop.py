@@ -87,5 +87,9 @@ def processPackages(bucket):
             # }
 
         except Exception:
-            logger.exception("Error en processPackages")
+            logger.exception("Error en processPackages, reconectando...")
+            try:
+                connection.close()
+            except:
+                pass
             connection, channel = queueConnect()

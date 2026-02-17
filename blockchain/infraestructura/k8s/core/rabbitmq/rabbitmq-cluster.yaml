@@ -25,6 +25,8 @@ spec:
       default_user = blockchain
       default_pass = blockchain123
       default_vhost = blockchain
+      prometheus.return_per_object_metrics = true
+
 
   override:
     statefulSet:
