@@ -73,7 +73,8 @@ def processPackages(bucket):
                 publicar_a_pool_manager(block, channel)
 
             connection.process_data_events(time_limit=1)
-            time.sleep(settings.PROCESSING_TIME)
+            if not txs:
+                time.sleep(0.2)  # Evitar loop muy rápido cuando no hay transacciones
 
             # Bloque resultante hacia pool manager:
             # {
