@@ -33,8 +33,6 @@ grafana:
     accessModes:
       - ReadWriteOnce
     size: 5Gi
-  deploymentStrategy:
-    type: Recreate
 
 prometheus:
   prometheusSpec:
