@@ -13,10 +13,8 @@ import config.settings as settings
 # -----------------------
 # Logging
 # -----------------------
-LOG_LEVEL = logging.DEBUG if getattr(settings, "DEBUG", False) else logging.INFO
-
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=logging.DEBUG,
     format="[%(asctime)s] [%(threadName)s] [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
