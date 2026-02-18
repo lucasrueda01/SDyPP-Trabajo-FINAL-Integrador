@@ -102,8 +102,10 @@ def procesar_resultado_worker(data, bucket):
         # 5) Verificar que el prev siga siendo el actual
         # -----------------------
         prev_actual = getUltimoBlock()
+        
+        prev_hash_actual = prev_actual["blockchainContent"] if prev_actual else "0"
 
-        if block["blockchainContent"] != prev_actual["blockchainContent"]:
+        if block["blockchainContent"] != prev_hash_actual:
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
