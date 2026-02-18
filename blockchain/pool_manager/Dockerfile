@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir \
     redis \
     requests \
     python-dotenv \
-    prometheus_client
+    prometheus_client \
+    gunicorn
 
 # Ejecutamos como módulo (imports correctos)
-CMD ["python", "pool_manager.py"]
+CMD ["gunicorn", "-w", "1", "--threads", "1", "-b", "0.0.0.0:5000", "pool_manager:app"]

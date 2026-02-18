@@ -8,6 +8,7 @@ import sys
 import time
 import metrics
 
+metrics.start_metrics_server(8000)
 app = Flask(__name__)
 redis_client = redis_connect()
 
@@ -36,7 +37,7 @@ def heartbeat():
     except Exception as e:
         logger.warning("Error al conectar con Redis: %s. Reconectando...", e)
         redis_client = redis_connect()
-        
+
     data = request.get_json()
     wid = data["id"]
     wtype = data["type"]
@@ -56,12 +57,13 @@ def heartbeat():
     pipe.hset(key, mapping=worker_data)
     pipe.expire(key, settings.HEARTBEAT_TTL)
     pipe.execute()
-    
+
     ttl = redis_client.ttl(key)
     logger.info("TTL actual para %s: %s", key, ttl)
     metrics.worker_heartbeats_total.inc()
 
     return jsonify({"status": "ok"})
+
 
 # Endpoint para eliminar un worker, sin usar pero podria ser útil
 @app.route("/deregister", methods=["POST"])
@@ -72,8 +74,7 @@ def deregister():
     return jsonify({"status": "deleted"})
 
 
-metrics.start_metrics_server(8000)
-
-if __name__ == "__main__":
-    threading.Thread(target=start_pool_consumer, args=(redis_client,), daemon=False).start()
-    app.run(host="0.0.0.0", port=settings.POOL_MANAGER_PORT)
+thread = threading.Thread(
+    target=start_pool_consumer, args=(redis_client,), daemon=False
+)
+thread.start()
