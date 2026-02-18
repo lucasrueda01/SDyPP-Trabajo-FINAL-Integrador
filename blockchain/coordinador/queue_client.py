@@ -6,6 +6,15 @@ import config.settings as settings
 
 logger = logging.getLogger("coordinator")
 
+_connection = None
+_channel = None
+
+
+def init_publisher():
+    global _connection, _channel
+    if _connection is None or _connection.is_closed:
+        _connection, _channel = queueConnect()
+
 
 def queueConnect(delay=5):
     while True:
@@ -53,18 +62,27 @@ def queueConnect(delay=5):
 
 
 def encolar(transaction):
-    connection, channel = queueConnect()
+    global _connection, _channel
+    if _connection is None or _connection.is_closed:
+        init_publisher()
     try:
         props = pika.BasicProperties(delivery_mode=2)
         logger.debug(f"Encolando transacción: {transaction}")
-        channel.basic_publish(
+        _channel.basic_publish(
             exchange="",
             routing_key="QueueTransactions",
             body=json.dumps(transaction),
             properties=props,
         )
-    finally:
-        connection.close()
+    except Exception:
+        logger.warning("Error publicando, reconectando...")
+        init_publisher()
+        _channel.basic_publish(
+            exchange="",
+            routing_key="QueueTransactions",
+            body=json.dumps(transaction),
+            properties=props,
+        )
 
 
 def publicar_a_pool_manager(block, channel):

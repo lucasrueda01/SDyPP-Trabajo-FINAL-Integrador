@@ -15,7 +15,7 @@ import threading
 import config.settings as settings
 from redis_client import get_runtime_config
 from consensus_service import procesar_resultado_worker
-from queue_client import encolar
+from queue_client import encolar, init_publisher
 from redis_client import redisConnect
 from storage_client import bucketConnect
 from blockchain_service import validarTransaction
@@ -42,6 +42,7 @@ logger = logging.getLogger("coordinator")
 
 # Inicializaciones
 redisConnect()
+init_publisher()
 bucket = bucketConnect(settings.BUCKET_NAME)
 
 # Background thread
