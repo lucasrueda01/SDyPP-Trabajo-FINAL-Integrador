@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir \
     gunicorn
 
 # Comando de arranque. Usamos Gunicorn para paralelizar el servicio y mejorar su rendimiento. 
-CMD ["gunicorn", "-w", "1", "--threads", "4", "-b", "0.0.0.0:5000", "coordinador:app"]
+CMD ["gunicorn", "-w", "1", "--threads", "1", "-b", "0.0.0.0:5000", "coordinador:app"]

@@ -4,7 +4,7 @@ metadata:
   name: rabbitmq
   namespace: blockchain-infra
 spec:
-  replicas: 1
+  replicas: 3
 
   resources:
     requests:
