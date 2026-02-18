@@ -18,8 +18,8 @@ def queue_connect(retries=10, delay=3):
                     credentials=pika.PlainCredentials(
                         settings.RABBIT_USER, settings.RABBIT_PASSWORD
                     ),
-                    heartbeat=30,
-                    blocked_connection_timeout=120,
+                    heartbeat=120,
+                    blocked_connection_timeout=300,
                 )
 
             connection = pika.BlockingConnection(params)
