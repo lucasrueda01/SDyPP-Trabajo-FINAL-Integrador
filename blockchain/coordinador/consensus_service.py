@@ -99,18 +99,31 @@ def procesar_resultado_worker(data, bucket):
             return {"message": "Hash invalido"}, 202
 
         # -----------------------
-        # 5) Sellar bloque
+        # 5) Verificar que el prev siga siendo el actual
+        # -----------------------
+        prev_actual = getUltimoBlock()
+
+        if block["blockchainContent"] != prev_actual["blockchainContent"]:
+            release_claim(claim_key, worker_id)
+            metrics.blocks_rejected_total.inc()
+            metrics.record_task_result(worker_type=worker_type, accepted=False)
+            logger.debug(
+                "Fork detectado para bloque %s. Prev hash cambió.",
+                block_id,
+            )
+            return {"message": "Fork detectado"}, 202
+
+        # -----------------------
+        # 6) Sellar bloque
         # -----------------------
         redisClient.set(status_key, "SEALED")
 
         # -----------------------
-        # 6) Construir bloque final
+        # 7) Construir bloque final
         # -----------------------
-        prev = getUltimoBlock()
-
         newBlock = construirNuevoBloque(
             block=block,
-            prev=prev,
+            prev=prev_actual,
             result_hash=data["hash"],
             nonce=data["result"],
         )
@@ -118,7 +131,7 @@ def procesar_resultado_worker(data, bucket):
         postBlock(newBlock)
 
         # -----------------------
-        # 7) Borrar temporal
+        # 8) Borrar temporal
         # -----------------------
         borrarBlock(bucket, block_id)
 
