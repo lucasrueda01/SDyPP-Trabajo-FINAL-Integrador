@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir \
     gunicorn
 
 # Ejecutamos como módulo (imports correctos)
-CMD ["gunicorn", "-w", "1", "--threads", "1", "-b", "0.0.0.0:5000", "pool_manager:app"]
+CMD ["gunicorn", "-w", "1", "--threads", "1", "-b", "0.0.0.0:6000", "pool_manager:app"]
