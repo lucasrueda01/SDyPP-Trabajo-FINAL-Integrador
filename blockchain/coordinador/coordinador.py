@@ -3,7 +3,12 @@ import sys
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from prometheus_client import start_http_server
-from redis_client import get_blockchain, get_blockchain_height, update_runtime_config
+from redis_client import (
+    get_blockchain,
+    get_blockchain_height,
+    update_runtime_config,
+    is_block_sealed,
+)
 import metrics
 import threading
 
@@ -65,6 +70,12 @@ def receive_solved_task():
     data = request.get_json()
     response, status = procesar_resultado_worker(data, bucket)
     return jsonify(response), status
+
+
+@app.route("/block/<block_id>/sealed", methods=["GET"])
+def block_sealed(block_id):
+    sealed = is_block_sealed(block_id)
+    return jsonify({"blockId": block_id, "sealed": sealed}), 200
 
 
 @app.route("/blockchain", methods=["GET"])

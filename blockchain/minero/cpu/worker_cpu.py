@@ -13,10 +13,9 @@ import config.settings as settings
 # -----------------------
 # Logging
 # -----------------------
-LOG_LEVEL = logging.DEBUG if getattr(settings, "DEBUG", False) else logging.INFO
 
 logging.basicConfig(
-    level=LOG_LEVEL,
+    level=logging.DEBUG,
     format="[%(asctime)s] [%(threadName)s] [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
@@ -26,8 +25,8 @@ logging.getLogger("pika").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-EXCHANGE_COMPETITIVE = "blocks_competitive" 
-EXCHANGE_COOPERATIVE = "blocks_cooperative"  
+EXCHANGE_COMPETITIVE = "blocks_competitive"
+EXCHANGE_COOPERATIVE = "blocks_cooperative"
 QUEUE_COOPERATIVE = "blocks_queue"
 
 hostCoordinador = "coordinator." + settings.COORDINADOR_HOST + ".nip.io"
@@ -76,6 +75,23 @@ def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | No
                 )
                 logger.debug("Payload que falló: %s", data)
                 return None
+
+
+def is_block_sealed(block_id):
+    try:
+        response = requests.get(
+            f"http://{hostCoordinador}/block/{block_id}/sealed", timeout=1.5
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("sealed", False)
+
+        return False
+
+    except requests.RequestException:
+        # Si el coordinador no responde, asumimos que NO está sellado
+        return False
 
 
 # -----------------------
@@ -267,6 +283,13 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
+
+        # Antes de hacer cualquier trabajo, verificamos si el bloque ya está sellado
+        if is_block_sealed(block_id):
+            logger.debug("Bloque %s ya sellado, abortando fragmento", block_id)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
+            return
+
         prefijo = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 

@@ -3,6 +3,7 @@ import metrics
 from redis_client import (
     get_redis,
     existBlock,
+    is_block_sealed,
     postBlock,
     release_claim,
     getUltimoBlock,
@@ -46,7 +47,7 @@ def procesar_resultado_worker(data, bucket):
     # 1) Idempotencia fuerte
     # -----------------------
     status = redisClient.get(status_key)
-    if status and status.decode() == "SEALED":
+    if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
         logger.debug(
@@ -98,25 +99,12 @@ def procesar_resultado_worker(data, bucket):
             return {"message": "Hash invalido"}, 202
 
         # -----------------------
-        # 5) Verificar existencia
-        # -----------------------
-        if existBlock(block_id):
-            redisClient.set(status_key, "SEALED")
-            release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
-            metrics.record_task_result(worker_type=worker_type, accepted=False)
-            logger.debug(
-                "Bloque %s ya existe. Recibido del worker %s", block_id, worker_id
-            )
-            return {"message": "Bloque ya existe"}, 202
-
-        # -----------------------
-        # 6) Sellar bloque
+        # 5) Sellar bloque
         # -----------------------
         redisClient.set(status_key, "SEALED")
 
         # -----------------------
-        # 7) Construir bloque final
+        # 6) Construir bloque final
         # -----------------------
         prev = getUltimoBlock()
 
@@ -130,7 +118,7 @@ def procesar_resultado_worker(data, bucket):
         postBlock(newBlock)
 
         # -----------------------
-        # 8) Borrar temporal
+        # 7) Borrar temporal
         # -----------------------
         borrarBlock(bucket, block_id)
 

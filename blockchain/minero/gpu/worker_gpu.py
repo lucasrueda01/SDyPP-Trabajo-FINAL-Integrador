@@ -85,6 +85,23 @@ def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | No
                 return None
 
 
+def is_block_sealed(block_id):
+    try:
+        response = requests.get(
+            f"http://{hostCoordinador}/block/{block_id}/sealed", timeout=1.5
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("sealed", False)
+
+        return False
+
+    except requests.RequestException:
+        # Si el coordinador no responde, asumimos que NO está sellado
+        return False
+
+
 # -----------------------
 # RabbitMQ
 # -----------------------
@@ -97,7 +114,7 @@ def connect_rabbit():
                 rabbitUser,
                 rabbitPassword,
             )
-            
+
             # Para que no se caiga la conexión por inactividad durante el minado, configuramos opciones TCP Keepalive
             tcp_options = {
                 "TCP_KEEPIDLE": 60,
@@ -224,6 +241,13 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
+
+        # Antes de hacer cualquier trabajo, verificamos si el bloque ya está sellado
+        if is_block_sealed(block_id):
+            logger.debug("Bloque %s ya sellado, abortando fragmento", block_id)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
+            return
+
         prefix = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 

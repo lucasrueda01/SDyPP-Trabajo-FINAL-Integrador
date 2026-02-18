@@ -53,6 +53,22 @@ def release_claim(claim_key, worker_id):
     owner = client.get(claim_key)
     if owner and owner.decode() == worker_id:
         client.delete(claim_key)
+        
+        
+def is_block_sealed(block_id):
+    redisClient = get_redis()
+
+    status_key = f"block:{block_id}:status"
+
+    status = redisClient.get(status_key)
+    if status and status.decode() == "SEALED":
+        return True
+
+    if existBlock(block_id):
+        return True
+
+    return False
+
 
 
 def gpus_vivas():
