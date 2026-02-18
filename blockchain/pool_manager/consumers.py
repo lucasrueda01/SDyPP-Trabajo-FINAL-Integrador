@@ -11,44 +11,38 @@ logger = logging.getLogger("pool-manager")
 
 
 def start_pool_consumer(redis_client):
-    try:
-        connection, channel_pool = queue_connect()
-        channel_pool.basic_qos(prefetch_count=1)
+    while True:
+        try:
+            logger.info("Iniciando pool consumer...")
+            connection, channel_pool = queue_connect()
+            channel_pool.basic_qos(prefetch_count=1)
 
-        def on_message(ch, method, properties, body):
+            def on_message(ch, method, properties, body):
+                try:
+                    block = json.loads(body)
+                    
+                    alive, _ = get_alive_workers(redis_client)
+                    ok = dispatch_to_workers(block, alive, channel_pool)
 
-            block = json.loads(body)
-            block_id = block["blockId"]
-            logger.info(
-                "Recibido bloque %s desde pool_tasks",
-                block_id,
+                    if ok:
+                        ch.basic_ack(method.delivery_tag)
+                    else:
+                        ch.basic_nack(method.delivery_tag, requeue=True)
+
+                except Exception:
+                    logger.exception("Error procesando mensaje")
+                    ch.basic_nack(method.delivery_tag, requeue=True)
+
+            channel_pool.basic_consume(
+                queue="pool_tasks",
+                on_message_callback=on_message,
+                auto_ack=False,
             )
 
-            # Si el bloque ya está sellado, no lo despachamos. 
-            # Esto es para evitar que se intente procesar un bloque que ya fue resuelto por otro worker.
-            status = redis_client.get(f"block:{block_id}:status")
-            if status and status.decode() == "SEALED":
-                logger.debug("Bloque %s ya resuelto. No se despacha.", block_id)
-                ch.basic_ack(method.delivery_tag)
-                return
+            logger.info("Pool Consumer iniciado.")
+            channel_pool.start_consuming()
 
-            alive, _ = get_alive_workers(redis_client)
+        except Exception:
+            logger.exception("Consumer perdió conexión, reconectando en 5s...")
+            time.sleep(5)
 
-            ok = dispatch_to_workers(block, alive, channel_pool)
-
-            if ok:
-                ch.basic_ack(method.delivery_tag)
-                logger.info("Bloque %s despachado correctamente", block_id)
-            else:
-                time.sleep(5)
-                ch.basic_nack(method.delivery_tag, requeue=True)
-
-        channel_pool.basic_consume(
-            queue="pool_tasks",
-            on_message_callback=on_message,
-            auto_ack=False,
-        )
-        logger.info("Pool Consumer iniciado, esperando mensajes...")
-        channel_pool.start_consuming()
-    except Exception as e:
-        traceback.print_exc()
