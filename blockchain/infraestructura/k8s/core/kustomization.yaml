@@ -8,6 +8,7 @@ resources:
   - rabbitmq/rabbitmq-secret.yaml
   - rabbitmq/rabbitmq-cluster.yaml
   - rabbitmq/rabbitmq-service-monitor.yaml
+  - rabbitmq/rabbitmq-pdb.yaml
 
   # Redis
   - redis/redis-service.yaml
