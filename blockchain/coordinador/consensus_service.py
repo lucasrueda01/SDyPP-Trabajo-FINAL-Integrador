@@ -7,6 +7,7 @@ from redis_client import (
     postBlock,
     release_claim,
     getUltimoBlock,
+    release_pending_slot
 )
 from storage_client import descargarBlock, borrarBlock
 from blockchain_service import calculateHash, construirNuevoBloque
@@ -51,9 +52,7 @@ def procesar_resultado_worker(data, bucket):
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
-        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
-        if prev_hash:
-            redisClient.decr(f"pending:{prev_hash.decode()}")
+        release_pending_slot(redisClient, block_id)
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s", block_id, worker_id
         )
@@ -78,6 +77,7 @@ def procesar_resultado_worker(data, bucket):
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
+            release_pending_slot(redisClient, block_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
@@ -93,6 +93,7 @@ def procesar_resultado_worker(data, bucket):
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
+            release_pending_slot(redisClient, block_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
@@ -124,10 +125,8 @@ def procesar_resultado_worker(data, bucket):
                 for tx in block["transactions"]:
                     encolar(tx)  # Usá tu función real de encolado
 
-                # Decrementar contador de pendientes
-                prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
-                if prev_hash:
-                    redisClient.decr(f"pending:{prev_hash.decode()}")
+            release_pending_slot(redisClient, block_id)
+
 
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
@@ -143,9 +142,7 @@ def procesar_resultado_worker(data, bucket):
         # 6) Sellar bloque
         # -----------------------
         redisClient.set(status_key, "SEALED")
-        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
-        if prev_hash:
-            redisClient.decr(f"pending:{prev_hash.decode()}")
+        release_pending_slot(redisClient, block_id)
 
         # -----------------------
         # 7) Construir bloque final

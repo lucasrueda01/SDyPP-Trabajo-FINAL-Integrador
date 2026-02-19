@@ -53,8 +53,8 @@ def release_claim(claim_key, worker_id):
     owner = client.get(claim_key)
     if owner and owner.decode() == worker_id:
         client.delete(claim_key)
-        
-        
+
+
 def is_block_sealed(block_id):
     redisClient = get_redis()
 
@@ -68,7 +68,6 @@ def is_block_sealed(block_id):
         return True
 
     return False
-
 
 
 def gpus_vivas():
@@ -114,3 +113,14 @@ def update_runtime_config(new_config):
         pipe.hset("system:config", key, value)
     pipe.execute()
     logger.debug("Runtime config actualizada: %s", new_config)
+
+
+def release_pending_slot(redisClient, block_id):
+    flag_key = f"block:{block_id}:slot_released"
+
+    was_set = redisClient.set(flag_key, "1", nx=True)
+
+    if was_set:
+        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
+        if prev_hash:
+            redisClient.decr(f"pending:{prev_hash.decode()}")
