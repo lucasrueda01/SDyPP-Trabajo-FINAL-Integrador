@@ -51,7 +51,7 @@ def calculateHash(data: str) -> str:
     return hash_md5.hexdigest()
 
 
-def enviar_resultado(data: dict, retries = 2, timeout = 5):
+def enviar_resultado(data, retries = 2, timeout = 5):
     url = f"http://{hostCoordinador}/solved_task"
     backoff = 1
     for i in range(retries + 1):
@@ -76,24 +76,6 @@ def enviar_resultado(data: dict, retries = 2, timeout = 5):
                 )
                 logger.debug("Payload que falló: %s", data)
                 return None
-
-
-def is_block_sealed(block_id):
-    try:
-        response = requests.get(
-            f"http://{hostCoordinador}/block/{block_id}/sealed", timeout=1.5
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("sealed", False)
-
-        return False
-
-    except requests.RequestException:
-        # Si el coordinador no responde, asumimos que NO está sellado
-        return False
-
 
 # -----------------------
 # RabbitMQ
@@ -284,12 +266,6 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
-
-        # Antes de hacer cualquier trabajo, verificamos si el bloque ya está sellado
-        if is_block_sealed(block_id):
-            logger.debug("Bloque %s ya sellado, abortando fragmento", block_id)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
-            return
 
         prefijo = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]

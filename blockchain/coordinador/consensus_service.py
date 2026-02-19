@@ -48,7 +48,6 @@ def procesar_resultado_worker(data, bucket):
     # -----------------------
     # 1) Idempotencia fuerte
     # -----------------------
-    status = redisClient.get(status_key)
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
