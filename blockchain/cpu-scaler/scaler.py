@@ -324,9 +324,6 @@ def reconcile(redis_client):
 def main():
     redis_client = redis_connect()
     metrics.start_metrics_server(8000)
-    logger.info("Conectado al coordinador en %s", COORD_EXTERNAL_HOST)
-    logger.info("Conectado a RabbitMQ en %s", RABBIT_EXTERNAL_HOST)
-    logger.info("Conectado al Pool Manager en %s", POOL_EXTERNAL_HOST)
 
     while True:
         metrics.update_uptime()

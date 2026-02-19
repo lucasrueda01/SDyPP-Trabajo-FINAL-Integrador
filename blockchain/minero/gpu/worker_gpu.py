@@ -9,6 +9,9 @@ import requests
 import pika
 from minero_gpu import ejecutar_minero
 import config.settings as settings
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+import config.settings as settings
 
 # -----------------------
 # Logging
@@ -43,7 +46,24 @@ logger.info(
     hostRabbit,
     pool_manager_host,
 )
+
+# Configuración de la sesión de requests con reintentos
 session = requests.Session()
+
+retry_strategy = Retry(
+    total=2,
+    backoff_factor=0.5,
+    status_forcelist=[500, 502, 503, 504],
+)
+
+adapter = HTTPAdapter(
+    max_retries=retry_strategy,
+    pool_connections=20,
+    pool_maxsize=20,
+)
+
+session.mount("http://", adapter)
+session.mount("https://", adapter)
 
 
 # -----------------------
@@ -55,7 +75,7 @@ def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | No
 
     for i in range(retries + 1):
         try:
-            resp = requests.post(url, json=data, timeout=timeout)
+            resp = session.post(url, json=data, timeout=timeout)
             logger.debug("POST %s -> %s", url, resp.status_code)
 
             if getattr(settings, "DEBUG", False):
@@ -82,23 +102,6 @@ def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | No
                 )
                 logger.debug("Payload que falló: %s", data)
                 return None
-
-
-def is_block_sealed(block_id):
-    try:
-        response = requests.get(
-            f"http://{hostCoordinador}/block/{block_id}/sealed", timeout=1.5
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("sealed", False)
-
-        return False
-
-    except requests.RequestException:
-        # Si el coordinador no responde, asumimos que NO está sellado
-        return False
 
 
 # -----------------------
@@ -240,12 +243,6 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
-
-        # Antes de hacer cualquier trabajo, verificamos si el bloque ya está sellado
-        if is_block_sealed(block_id):
-            logger.debug("Bloque %s ya sellado, abortando fragmento", block_id)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
-            return
 
         prefix = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
