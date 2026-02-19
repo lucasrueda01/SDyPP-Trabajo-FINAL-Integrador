@@ -8,6 +8,8 @@ import sys
 import logging
 
 import pika
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import config.settings as settings
 
 # -----------------------
@@ -42,7 +44,24 @@ logger.info(
     hostRabbit,
     pool_manager_host,
 )
+
+# Configuración de la sesión de requests con reintentos
 session = requests.Session()
+
+retry_strategy = Retry(
+    total=2,
+    backoff_factor=0.5,
+    status_forcelist=[500, 502, 503, 504],
+)
+
+adapter = HTTPAdapter(
+    max_retries=retry_strategy,
+    pool_connections=20,
+    pool_maxsize=20,
+)
+
+session.mount("http://", adapter)
+session.mount("https://", adapter)
 
 
 def calculateHash(data: str) -> str:
@@ -51,31 +70,21 @@ def calculateHash(data: str) -> str:
     return hash_md5.hexdigest()
 
 
-def enviar_resultado(data, retries = 2, timeout = 5):
+def enviar_resultado(data, timeout=15):
     url = f"http://{hostCoordinador}/solved_task"
-    backoff = 1
-    for i in range(retries + 1):
-        try:
-            resp = requests.post(url, json=data, timeout=timeout)
-            logger.debug("POST %s -> %s", url, resp.status_code)
-            # log minimal del body para debug si está en DEBUG
-            if getattr(settings, "DEBUG", False):
-                logger.debug("Coordinator response: %s", resp.text)
-            return resp.status_code
-        except requests.exceptions.RequestException as e:
-            logger.warning(
-                "Intento %d: fallo al enviar resultado al coordinador: %s", i + 1, e
-            )
-            if i < retries:
-                time.sleep(backoff)
-                backoff *= 2
-            else:
-                logger.error(
-                    "No se pudo enviar resultado al coordinador tras %d intentos",
-                    retries + 1,
-                )
-                logger.debug("Payload que falló: %s", data)
-                return None
+
+    try:
+        resp = session.post(url, json=data, timeout=timeout)
+        logger.debug("POST %s -> %s", url, resp.status_code)
+        logger.debug("Coordinator response: %s", resp.text)
+
+        return resp.status_code
+
+    except requests.exceptions.RequestException as e:
+        logger.error("Error enviando resultado al coordinador: %s", e)
+        logger.debug("Payload que falló: %s", data)
+        return None
+
 
 # -----------------------
 # RabbitMQ
