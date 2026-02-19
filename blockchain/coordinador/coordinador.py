@@ -6,8 +6,9 @@ from prometheus_client import start_http_server
 from redis_client import (
     get_blockchain,
     get_blockchain_height,
+    get_redis,
+    reset_blockchain_state,
     update_runtime_config,
-    is_block_sealed,
 )
 import metrics
 import threading
@@ -73,12 +74,6 @@ def receive_solved_task():
     return jsonify(response), status
 
 
-@app.route("/block/<block_id>/sealed", methods=["GET"])
-def block_sealed(block_id):
-    sealed = is_block_sealed(block_id)
-    return jsonify({"blockId": block_id, "sealed": sealed}), 200
-
-
 @app.route("/blockchain", methods=["GET"])
 def get_bc():
     return jsonify(get_blockchain())
@@ -100,3 +95,13 @@ def update_config():
 def get_config():
     return jsonify(get_runtime_config())
 
+
+@app.route("/admin/reset-blockchain", methods=["POST"])
+def reset_blockchain():
+    try:
+        deleted = reset_blockchain_state()
+        return jsonify({"status": "Blockchain reset", "keys_deleted": deleted}), 200
+
+    except Exception as e:
+        logger.exception("Error reseteando blockchain")
+        return jsonify({"error": str(e)}), 500
