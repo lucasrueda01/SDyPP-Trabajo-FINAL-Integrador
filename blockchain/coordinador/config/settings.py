@@ -43,3 +43,5 @@ PROCESSING_TIME = int(os.getenv("PROCESSING_TIME", 15))
 BUCKET_NAME = os.getenv("BUCKET_NAME", "bucket_integrador2")
 
 FRAGMENT_PERCENT = float(os.getenv("FRAGMENT_PERCENT", 0.5))
+
+MAX_PENDING_PER_PREV_HASH = int(os.getenv("MAX_PENDING_PER_PREV_HASH", 2))

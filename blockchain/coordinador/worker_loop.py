@@ -2,10 +2,11 @@ import json
 import uuid
 import time
 import logging
+
 import metrics
 import config.settings as settings
 from queue_client import queueConnect, publicar_a_pool_manager
-from redis_client import getUltimoBlock, gpus_vivas
+from redis_client import get_redis, getUltimoBlock, gpus_vivas
 from storage_client import subirBlock
 from redis_client import get_runtime_config
 
@@ -14,6 +15,7 @@ logger = logging.getLogger("coordinator")
 
 def processPackages(bucket):
     connection, channel = queueConnect()
+    redis = get_redis()
 
     while True:
         try:
@@ -35,6 +37,26 @@ def processPackages(bucket):
                 last = getUltimoBlock()
                 runtime_config = get_runtime_config()
 
+                # -------- CONTROL DE BLOQUES PENDIENTES --------
+                prev_hash = last["blockchainContent"] if last else "0"
+                pending_key = f"pending:{prev_hash}"
+
+                max_pending = settings.MAX_PENDING_PER_PREV_HASH
+
+                current_pending = redis.get(pending_key)
+                current_pending = int(current_pending) if current_pending else 0
+
+                if current_pending >= max_pending:
+                    logger.debug(
+                        "Límite de bloques pendientes alcanzado para %s (%d)",
+                        prev_hash,
+                        current_pending,
+                    )
+                    time.sleep(0.1)
+                    continue
+
+                redis.incr(pending_key)
+
                 # -------- DIFFICULTY --------
                 if runtime_config["difficulty"] > 0:
                     difficulty = runtime_config["difficulty"]
@@ -52,7 +74,7 @@ def processPackages(bucket):
                     "transactions": txs,
                     "prefijo": "0" * difficulty,
                     "baseStringChain": settings.BASE_STRING_CHAIN,
-                    "blockchainContent": last["blockchainContent"] if last else "0",
+                    "blockchainContent": prev_hash,
                     "numMaxRandom": runtime_config["max_random"],
                 }
 
@@ -69,23 +91,15 @@ def processPackages(bucket):
                     f"Bloque {blockId} creado con {len(txs)} transacciones, dificultad {difficulty}, modo minería: {block.get('mining_mode', 'n/a')}"
                 )
 
+                redis.set(f"block:{blockId}:status", "PENDING")
+                redis.set(f"block:{blockId}:prev_hash", prev_hash)
+
                 subirBlock(bucket, block)
                 publicar_a_pool_manager(block, channel)
 
             connection.process_data_events(time_limit=1)
             if not txs:
                 time.sleep(0.2)  # Evitar loop muy rápido cuando no hay transacciones
-
-            # Bloque resultante hacia pool manager:
-            # {
-            #  "blockId": id del bloque,
-            #  "transactions": [...],
-            #  "prefijo": "00",
-            #  "baseStringChain": "string",
-            #  "blockchainContent": "string",
-            #  "mining_mode": "cooperative" o "competitive",
-            #  "fragment_percent": 0.5 (opcional, solo para cooperative)
-            # }
 
         except Exception:
             logger.exception("Error en processPackages, reconectando...")
@@ -94,3 +108,15 @@ def processPackages(bucket):
             except:
                 pass
             connection, channel = queueConnect()
+
+
+# Bloque resultante hacia pool manager:
+# {
+#  "blockId": id del bloque,
+#  "transactions": [...],
+#  "prefijo": "00",
+#  "baseStringChain": "string",
+#  "blockchainContent": "string",
+#  "mining_mode": "cooperative" o "competitive",
+#  "fragment_percent": 0.5 (opcional, solo para cooperative)
+# }

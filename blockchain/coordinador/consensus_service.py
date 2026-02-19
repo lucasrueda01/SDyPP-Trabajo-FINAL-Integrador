@@ -10,6 +10,7 @@ from redis_client import (
 )
 from storage_client import descargarBlock, borrarBlock
 from blockchain_service import calculateHash, construirNuevoBloque
+from queue_client import encolar
 
 logger = logging.getLogger("coordinator")
 
@@ -50,6 +51,9 @@ def procesar_resultado_worker(data, bucket):
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
+        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
+        if prev_hash:
+            redisClient.decr(f"pending:{prev_hash.decode()}")
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s", block_id, worker_id
         )
@@ -102,13 +106,33 @@ def procesar_resultado_worker(data, bucket):
         # 5) Verificar que el prev siga siendo el actual
         # -----------------------
         prev_actual = getUltimoBlock()
-        
+
         prev_hash_actual = prev_actual["blockchainContent"] if prev_actual else "0"
 
         if block["blockchainContent"] != prev_hash_actual:
+            # Intentamos marcar el bloque como huérfano solo una vez
+            orphan_key = f"block:{block_id}:orphaned"
+
+            was_set = redisClient.set(orphan_key, "1", nx=True)
+
+            if was_set:
+                logger.debug(
+                    "Reencolando tx del bloque huérfano %s",
+                    block_id,
+                )
+
+                for tx in block["transactions"]:
+                    encolar(tx)  # Usá tu función real de encolado
+
+                # Decrementar contador de pendientes
+                prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
+                if prev_hash:
+                    redisClient.decr(f"pending:{prev_hash.decode()}")
+
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
+
             logger.debug(
                 "Fork detectado para bloque %s. Prev hash cambió.",
                 block_id,
@@ -119,6 +143,9 @@ def procesar_resultado_worker(data, bucket):
         # 6) Sellar bloque
         # -----------------------
         redisClient.set(status_key, "SEALED")
+        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
+        if prev_hash:
+            redisClient.decr(f"pending:{prev_hash.decode()}")
 
         # -----------------------
         # 7) Construir bloque final
