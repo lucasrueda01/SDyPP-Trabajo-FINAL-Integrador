@@ -51,7 +51,7 @@ def calculateHash(data: str) -> str:
     return hash_md5.hexdigest()
 
 
-def enviar_resultado(data: dict, retries: int = 2, timeout: int = 5) -> int | None:
+def enviar_resultado(data: dict, retries = 2, timeout = 5):
     url = f"http://{hostCoordinador}/solved_task"
     backoff = 1
     for i in range(retries + 1):

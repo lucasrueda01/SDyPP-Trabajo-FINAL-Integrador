@@ -43,6 +43,7 @@ logger.info(
     hostRabbit,
     pool_manager_host,
 )
+session = requests.Session()
 
 
 # -----------------------
@@ -361,7 +362,7 @@ def heartbeat_loop():
 
     while True:
         try:
-            requests.post(url, json=payload, timeout=settings.HEARTBEAT_TIMEOUT)
+            session.post(url, json=payload, timeout=settings.HEARTBEAT_TIMEOUT)
         except Exception as e:
             logger.warning("[%s] No se pudo enviar heartbeat", WORKER_ID)
             logger.error("[%s]", e)
