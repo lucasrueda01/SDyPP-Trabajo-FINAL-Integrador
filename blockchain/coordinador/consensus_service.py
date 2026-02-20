@@ -7,7 +7,7 @@ from redis_client import (
     postBlock,
     release_claim,
     getUltimoBlock,
-    release_pending_slot
+    release_pending_slot,
 )
 from storage_client import descargarBlock, borrarBlock
 from blockchain_service import calculateHash, construirNuevoBloque
@@ -30,6 +30,7 @@ def procesar_resultado_worker(data, bucket):
 
     redisClient = get_redis()
 
+    # 0) Validacion basica
     if not data or not data.get("result"):
         logger.debug(
             "Resultado inválido recibido del worker %s:  | Bloque %s",
@@ -45,9 +46,7 @@ def procesar_resultado_worker(data, bucket):
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
 
-    # -----------------------
-    # 1) Idempotencia fuerte
-    # -----------------------
+    # 1) Verificar si el bloque ya fue sellado
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
@@ -57,10 +56,9 @@ def procesar_resultado_worker(data, bucket):
         )
         return {"message": "Bloque ya cerrado"}, 202
 
-    # -----------------------
     # 2) Claim exclusivo
-    # -----------------------
-    if not redisClient.set(claim_key, worker_id, nx=True, ex=15):
+    claim_succesful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
+    if not claim_succesful:
         metrics.blocks_rejected_total.inc()
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         logger.debug(
@@ -69,9 +67,7 @@ def procesar_resultado_worker(data, bucket):
         return {"message": "Bloque ya reclamado"}, 202
 
     try:
-        # -----------------------
         # 3) Descargar bloque
-        # -----------------------
         block = descargarBlock(bucket, block_id)
         if block is None:
             redisClient.set(status_key, "SEALED")
@@ -84,9 +80,7 @@ def procesar_resultado_worker(data, bucket):
             )
             return {"message": "Bloque ya cerrado"}, 202
 
-        # -----------------------
         # 4) Validar hash
-        # -----------------------
         hash_base = block["baseStringChain"] + block["blockchainContent"]
         hash_calc = calculateHash(data["result"] + hash_base)
 
@@ -102,9 +96,7 @@ def procesar_resultado_worker(data, bucket):
             )
             return {"message": "Hash invalido"}, 202
 
-        # -----------------------
         # 5) Verificar que el prev siga siendo el actual
-        # -----------------------
         prev_actual = getUltimoBlock()
 
         prev_hash_actual = prev_actual["blockchainContent"] if prev_actual else "0"
@@ -135,15 +127,11 @@ def procesar_resultado_worker(data, bucket):
             )
             return {"message": "Fork detectado"}, 202
 
-        # -----------------------
         # 6) Sellar bloque
-        # -----------------------
         redisClient.set(status_key, "SEALED")
         release_pending_slot(redisClient, block_id)
 
-        # -----------------------
         # 7) Construir bloque final
-        # -----------------------
         newBlock = construirNuevoBloque(
             block=block,
             prev=prev_actual,
@@ -153,9 +141,7 @@ def procesar_resultado_worker(data, bucket):
 
         postBlock(newBlock)
 
-        # -----------------------
         # 8) Borrar temporal
-        # -----------------------
         borrarBlock(bucket, block_id)
 
         logger.debug("Bloque %s aceptado. Ganador: %s", block_id, worker_id)
