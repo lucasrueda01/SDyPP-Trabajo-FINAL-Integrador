@@ -125,8 +125,6 @@ def procesar_resultado_worker(data, bucket):
                     encolar(tx)  # Usá tu función real de encolado
 
             release_pending_slot(redisClient, block_id)
-
-
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)

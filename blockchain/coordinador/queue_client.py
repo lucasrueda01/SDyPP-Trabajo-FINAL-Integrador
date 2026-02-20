@@ -67,13 +67,13 @@ def encolar(transaction):
         init_publisher()
     try:
         props = pika.BasicProperties(delivery_mode=2)
-        logger.debug(f"Encolando transacción: {transaction}")
         _channel.basic_publish(
             exchange="",
             routing_key="QueueTransactions",
             body=json.dumps(transaction),
             properties=props,
         )
+        logger.debug(f"Encolando transacción: {transaction}")
     except Exception:
         logger.warning("Error publicando, reconectando...")
         init_publisher()
