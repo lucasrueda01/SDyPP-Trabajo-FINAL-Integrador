@@ -129,9 +129,17 @@ def release_pending_slot(redisClient, block_id):
 def reset_blockchain_state():
     redis_client = get_redis()
     deleted = 0
-    patterns = ["block:*", "pending:*", "blockchain:*"]
+
+    patterns = [
+        "block:*",
+        "pending:*",
+        "blockchain*",
+        "block_ids",
+    ]
+
     for pattern in patterns:
         for key in redis_client.scan_iter(pattern):
             redis_client.delete(key)
             deleted += 1
+
     return deleted
