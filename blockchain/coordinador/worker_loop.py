@@ -19,6 +19,7 @@ def processPackages(bucket):
 
     while True:
         try:
+            connection.process_data_events(time_limit=0)
             metrics.update_uptime()
 
             # --------------------------------------------------
@@ -39,6 +40,7 @@ def processPackages(bucket):
                     prev_hash,
                     current_pending,
                 )
+                connection.process_data_events(time_limit=0)
                 time.sleep(0.1)
                 continue
 
@@ -56,6 +58,7 @@ def processPackages(bucket):
                 channel.basic_ack(method_frame.delivery_tag)
 
             if not txs:
+                connection.process_data_events(time_limit=0)
                 time.sleep(0.2)
                 continue
 
