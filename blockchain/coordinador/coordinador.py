@@ -21,6 +21,7 @@ from redis_client import redisConnect
 from storage_client import bucketConnect
 from blockchain_service import validarTransaction
 from worker_loop import processPackages
+from flask import send_from_directory
 
 start_http_server(8000)
 
@@ -106,3 +107,7 @@ def reset_blockchain():
     except Exception as e:
         logger.exception("Error reseteando blockchain")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/")
+def serve_frontend():
+    return send_from_directory("static", "index.html")

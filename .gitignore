@@ -26,4 +26,3 @@ docker-compose-local.yaml
 **/.terraform/
 **/*.tfstate
 **/*.tfstate.backup
-*html

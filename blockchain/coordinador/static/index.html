@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Blockchain Dashboard</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: #e2e8f0;
+      }
+
+      header {
+        padding: 25px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+      }
+
+      .status-bar {
+        margin-top: 10px;
+        font-size: 14px;
+      }
+
+      .status-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: red;
+        margin-right: 6px;
+      }
+
+      .container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: auto;
+      }
+
+      .card {
+        backdrop-filter: blur(12px);
+        background: rgba(30, 41, 59, 0.92);
+        padding: 20px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      input,
+      select {
+        padding: 10px;
+        margin: 6px 0;
+        border-radius: 8px;
+        border: none;
+        background: #334155;
+        color: white;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      button {
+        margin-top: 10px;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        opacity: 0.85;
+      }
+
+      .stats {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .stat-box {
+        flex: 1;
+        min-width: 200px;
+        background: rgba(51, 65, 85, 0.8);
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+      }
+
+      .stat-box h2 {
+        margin: 0;
+        font-size: 14px;
+        font-family: monospace;
+        word-break: break-all;
+      }
+
+      .config-display {
+        background: rgba(51, 65, 85, 0.6);
+        padding: 12px;
+        border-radius: 10px;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 8px;
+        text-align: center;
+        vertical-align: top;
+      }
+
+      th {
+        background: #334155;
+      }
+
+      tr:nth-child(even) {
+        background: rgba(51, 65, 85, 0.5);
+      }
+
+      .hash-cell {
+        font-family: monospace;
+        word-break: break-all;
+      }
+
+      .tx-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 10px;
+        padding: 10px 0;
+      }
+
+      .tx-card {
+        background: rgba(51, 65, 85, 0.8);
+        padding: 8px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      td details {
+        width: 600px; /* ajustalo a gusto */
+        display: block;
+      }
+
+      .block-row {
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .block-row:hover {
+        background: rgba(59, 130, 246, 0.1);
+      }
+
+      .expand-cell {
+        text-align: center;
+      }
+
+      .expand-icon {
+        display: inline-block;
+        transition: transform 0.2s ease;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      🚀 Blockchain Dashboard
+      <div class="status-bar">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">Desconectado</span>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- CONECTAR -->
+      <div class="card">
+        <h3>Conectar Coordinador</h3>
+        <input
+          id="apiUrlInput"
+          placeholder="IP o dominio (ej: 34.10.20.3:5000)"
+        />
+        <button onclick="setApiUrl()">Conectar</button>
+      </div>
+
+      <!-- CONFIG -->
+      <div class="card">
+        <h3>Configuración del Sistema</h3>
+
+        <input
+          id="fragmentPercent"
+          type="number"
+          step="0.01"
+          min="0.01"
+          max="0.5"
+          placeholder="Fragment %"
+        />
+        <input id="maxRandom" type="number" placeholder="Max Random" />
+        <input
+          id="difficulty"
+          type="number"
+          placeholder="Difficulty (0 = dinámica)"
+        />
+
+        <select id="miningMode">
+          <option value="cooperative">Modo: Cooperativo</option>
+          <option value="competitive">Modo: Competitivo</option>
+        </select>
+
+        <button onclick="updateConfig()">Actualizar Configuración</button>
+
+        <div class="config-display" id="currentConfig">
+          Configuración actual: -
+        </div>
+      </div>
+
+      <!-- TRANSACCIÓN -->
+      <div class="card">
+        <h3>Enviar Transacción</h3>
+        <input id="origen" placeholder="Origen" />
+        <input id="destino" placeholder="Destino" />
+        <input id="monto" type="number" placeholder="Monto" />
+        <button onclick="enviar()">Enviar</button>
+      </div>
+
+      <!-- BATCH -->
+      <div class="card">
+        <h3>Enviar Batch</h3>
+        <input
+          id="batchCantidad"
+          type="number"
+          placeholder="Cantidad de transacciones"
+        />
+        <button onclick="enviarBatch()">Enviar Batch</button>
+      </div>
+
+      <!-- ESTADO -->
+      <div class="card">
+        <h3>Estado</h3>
+        <div class="stats">
+          <div class="stat-box">
+            <div>Altura Blockchain</div>
+            <h2 id="height">0</h2>
+          </div>
+          <div class="stat-box">
+            <div>Último Hash</div>
+            <h2 id="lastHash">-</h2>
+          </div>
+        </div>
+
+        <button onclick="loadBlockchain()">🔄 Refrescar Blockchain</button>
+        <button
+          onclick="resetBlockchain()"
+          style="background: linear-gradient(90deg, #ef4444, #dc2626)"
+        >
+          🗑️ Reset Blockchain
+        </button>
+      </div>
+
+      <!-- BLOCKCHAIN -->
+      <div class="card">
+        <h3>Blockchain</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Block ID</th>
+              <th>Hash</th>
+              <th>Prev Hash</th>
+              <th>Nonce</th>
+              <th>Prefijo</th>
+              <th>Timestamp</th>
+              <th>Tx</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="chainTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      let API_URL = window.location.origin;
+
+      function setApiUrl() {
+        const raw = apiUrlInput.value.trim();
+        if (!raw) return alert("Ingresá una URL");
+        API_URL = raw.startsWith("http") ? raw : "http://" + raw;
+        checkStatus();
+        loadHeight();
+        loadBlockchain();
+        loadConfig();
+      }
+
+      async function checkStatus() {
+        if (!API_URL) return;
+        try {
+          const res = await fetch(`${API_URL}/status`);
+          if (res.ok) {
+            statusDot.style.background = "limegreen";
+            statusText.innerText = "Coordinador Online";
+          } else throw new Error();
+        } catch {
+          statusDot.style.background = "red";
+          statusText.innerText = "Coordinador Offline";
+        }
+      }
+
+      async function loadConfig() {
+        if (!API_URL) return;
+        try {
+          const res = await fetch(`${API_URL}/config`);
+          const data = await res.json();
+
+          fragmentPercent.value = data.fragment_percent * 100 ?? "";
+          maxRandom.value = data.max_random ?? "";
+          difficulty.value = data.difficulty ?? "";
+          miningMode.value = data.mining_mode ?? "cooperative";
+
+          currentConfig.innerText = `Fragment: ${data.fragment_percent * 100}% | MaxRandom: ${data.max_random} | Difficulty: ${data.difficulty} | Mode: ${data.mining_mode}`;
+        } catch {
+          currentConfig.innerText = "No se pudo obtener configuración";
+        }
+      }
+
+      async function updateConfig() {
+        if (!API_URL) return alert("Primero conectá el coordinador");
+
+        const body = {
+          fragment_percent: parseFloat(fragmentPercent.value) / 100,
+          max_random: parseInt(maxRandom.value),
+          difficulty: parseInt(difficulty.value),
+          mining_mode: miningMode.value,
+        };
+
+        await fetch(`${API_URL}/config`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        await loadConfig();
+      }
+
+      async function enviar() {
+        if (!API_URL) return alert("Primero conectá el coordinador");
+
+        await fetch(`${API_URL}/transaction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            origen: origen.value,
+            destino: destino.value,
+            monto: parseInt(monto.value),
+          }),
+        });
+      }
+
+      async function enviarBatch() {
+        const cantidad = parseInt(batchCantidad.value);
+        const batchSize = 100;
+        const delayBetweenBatches = 10 + Math.random() * 40; // entre 10 y 50ms, simulando tráfico real
+
+        for (let i = 0; i < cantidad; i += batchSize) {
+          const requests = [];
+
+          for (let j = i; j < i + batchSize && j < cantidad; j++) {
+            requests.push(
+              fetch(`${API_URL}/transaction`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  origen: "BatchUser" + j,
+                  destino: "Destino" + j,
+                  monto: Math.floor(Math.random() * 1000) + 1,
+                }),
+              }),
+            );
+          }
+
+          await Promise.all(requests);
+
+          // pequeño respiro para el navegador
+          await new Promise((r) => setTimeout(r, delayBetweenBatches));
+        }
+      }
+
+      async function loadHeight() {
+        if (!API_URL) return;
+        const res = await fetch(`${API_URL}/blockchain/height`);
+        const data = await res.json();
+        height.innerText = data.height;
+      }
+
+      async function loadBlockchain() {
+        if (!API_URL) return;
+
+        const res = await fetch(`${API_URL}/blockchain`);
+        const data = await res.json();
+
+        if (data.length > 0) {
+          lastHash.innerText = data[data.length - 1].hash;
+        }
+
+        chainTable.innerHTML = "";
+
+        data.slice(0, 100).forEach((block, index) => {
+          const timestamp = new Date(block.timestamp * 1000).toLocaleString(
+            "es-AR",
+            {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            },
+          );
+
+          const txRows = `
+            <div class="tx-grid">
+              ${block.transactions
+                .map(
+                  (tx) => `
+                <div class="tx-card">
+                  <div><b>Origen:</b> ${tx.origen}</div>
+                  <div><b>Destino:</b> ${tx.destino}</div>
+                  <div><b>Monto:</b> $${tx.monto}</div>
+                </div>
+              `,
+                )
+                .join("")}
+            </div>
+          `;
+
+          chainTable.innerHTML += `
+          <tr class="block-row" onclick="toggleTx('${block.blockId}', this)">
+            <td>${index}</td>
+            <td>${block.blockId}</td>
+            <td class="hash-cell">${block.hash}</td>
+            <td class="hash-cell">${block.hashPrevio || "-"}</td>
+            <td>${block.nonce}</td>
+            <td>${block.prefijo}</td>
+            <td>${timestamp}</td>
+            <td>${block.transactions.length}</td>
+            <td class="expand-cell">
+              <span class="expand-icon">▼</span>
+            </td>
+          </tr>
+
+          <tr id="tx-${block.blockId}" class="tx-row" style="display:none;">
+            <td colspan="9">
+              <div class="tx-grid">
+                ${block.transactions
+                  .map(
+                    (tx) => `
+                  <div class="tx-card">
+                    <div><b>Origen:</b> ${tx.origen}</div>
+                    <div><b>Destino:</b> ${tx.destino}</div>
+                    <div><b>Monto:</b> $${tx.monto}</div>
+                  </div>
+                `,
+                  )
+                  .join("")}
+              </div>
+            </td>
+          </tr>
+          `;
+        });
+      }
+
+      async function resetBlockchain() {
+        if (!API_URL) return alert("Primero conectá el coordinador");
+
+        const confirmacion = confirm(
+          "⚠️ Esto eliminará toda la blockchain. ¿Estás seguro?",
+        );
+
+        if (!confirmacion) return;
+
+        try {
+          const res = await fetch(`${API_URL}/admin/reset-blockchain`, {
+            method: "POST",
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text);
+          }
+
+          console.log("Blockchain reseteada correctamente");
+
+          // Refrescar estado
+          await loadHeight();
+          await loadBlockchain();
+        } catch (err) {
+          console.error("Error al resetear:", err);
+          alert("Error al resetear la blockchain");
+        }
+      }
+
+      function toggleTx(blockId, row) {
+        const detailRow = document.getElementById(`tx-${blockId}`);
+        const icon = row.querySelector(".expand-icon");
+
+        const isOpen = detailRow.style.display === "table-row";
+
+        if (isOpen) {
+          detailRow.style.display = "none";
+          icon.style.transform = "rotate(0deg)";
+        } else {
+          detailRow.style.display = "table-row";
+          icon.style.transform = "rotate(180deg)";
+        }
+      }
+
+      setInterval(checkStatus, 5000);
+      setInterval(loadHeight, 5000);
+    </script>
+  </body>
+</html>
