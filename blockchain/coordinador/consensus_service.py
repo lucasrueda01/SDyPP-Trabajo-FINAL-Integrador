@@ -109,7 +109,8 @@ def procesar_resultado_worker(data, bucket):
 
             if was_set:
                 logger.debug(
-                    "Reencolando tx del bloque huérfano %s",
+                    "Reencolando %d txs del bloque huérfano %s",
+                    len(block["transactions"]),
                     block_id,
                 )
 
