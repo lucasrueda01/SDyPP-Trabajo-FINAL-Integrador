@@ -114,18 +114,6 @@ def update_runtime_config(new_config):
     pipe.execute()
     logger.debug("Runtime config actualizada: %s", new_config)
 
-
-def release_pending_slot(redisClient, block_id):
-    flag_key = f"block:{block_id}:slot_released"
-
-    was_set = redisClient.set(flag_key, "1", nx=True)
-
-    if was_set:
-        prev_hash = redisClient.get(f"block:{block_id}:prev_hash")
-        if prev_hash:
-            redisClient.decr(f"pending:{prev_hash.decode()}")
-
-
 def reset_blockchain_state():
     redis_client = get_redis()
     deleted = 0

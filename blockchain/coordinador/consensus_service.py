@@ -30,10 +30,10 @@ def procesar_resultado_worker(data, bucket):
 
     redisClient = get_redis()
 
-    # 0) Validacion basica
+    # 0) Validación básica
     if not data or not data.get("result"):
         logger.debug(
-            "Resultado inválido recibido del worker %s:  | Bloque %s",
+            "Resultado inválido recibido del worker %s | Bloque %s",
             data.get("workerId", "unknown"),
             data.get("blockId", "unknown"),
         )
@@ -46,37 +46,41 @@ def procesar_resultado_worker(data, bucket):
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
 
-    # 1) Verificar si el bloque ya fue sellado
+    # 1) Si ya está sellado, ignorar
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         metrics.blocks_rejected_total.inc()
-        release_pending_slot(redisClient, block_id)
         logger.debug(
-            "Bloque %s ya cerrado. Recibido del worker %s", block_id, worker_id
+            "Bloque %s ya cerrado. Recibido del worker %s",
+            block_id,
+            worker_id,
         )
         return {"message": "Bloque ya cerrado"}, 202
 
     # 2) Claim exclusivo
-    claim_succesful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
-    if not claim_succesful:
+    claim_successful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
+    if not claim_successful:
         metrics.blocks_rejected_total.inc()
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         logger.debug(
-            "Bloque %s ya reclamado. Recibido del worker %s", block_id, worker_id
+            "Bloque %s ya reclamado. Recibido del worker %s",
+            block_id,
+            worker_id,
         )
         return {"message": "Bloque ya reclamado"}, 202
 
     try:
-        # 3) Descargar bloque
+        # 3) Descargar bloque temporal
         block = descargarBlock(bucket, block_id)
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            release_pending_slot(redisClient, block_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
-                "Bloque %s ya cerrado. Recibido del worker %s", block_id, worker_id
+                "Bloque %s ya cerrado (no existe temporal). Recibido del worker %s",
+                block_id,
+                worker_id,
             )
             return {"message": "Bloque ya cerrado"}, 202
 
@@ -86,7 +90,6 @@ def procesar_resultado_worker(data, bucket):
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
-            release_pending_slot(redisClient, block_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
@@ -96,13 +99,11 @@ def procesar_resultado_worker(data, bucket):
             )
             return {"message": "Hash invalido"}, 202
 
-        # 5) Verificar que el prev siga siendo el actual
+        # 5) Verificar que el head no cambió
         prev_actual = getUltimoBlock()
-
         prev_hash_actual = prev_actual["blockchainContent"] if prev_actual else "0"
 
         if block["blockchainContent"] != prev_hash_actual:
-            # Intentamos marcar el bloque como huérfano solo una vez
             orphan_key = f"block:{block_id}:orphaned"
 
             was_set = redisClient.set(orphan_key, "1", nx=True)
@@ -113,11 +114,9 @@ def procesar_resultado_worker(data, bucket):
                     len(block["transactions"]),
                     block_id,
                 )
-
                 for tx in block["transactions"]:
-                    encolar(tx)  # Usá tu función real de encolado
+                    encolar(tx)
 
-            release_pending_slot(redisClient, block_id)
             release_claim(claim_key, worker_id)
             metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
@@ -130,7 +129,6 @@ def procesar_resultado_worker(data, bucket):
 
         # 6) Sellar bloque
         redisClient.set(status_key, "SEALED")
-        release_pending_slot(redisClient, block_id)
 
         # 7) Construir bloque final
         newBlock = construirNuevoBloque(
@@ -142,10 +140,14 @@ def procesar_resultado_worker(data, bucket):
 
         postBlock(newBlock)
 
-        # 8) Borrar temporal
+        # 8) Borrar bloque temporal
         borrarBlock(bucket, block_id)
 
-        logger.debug("Bloque %s aceptado. Ganador: %s", block_id, worker_id)
+        logger.debug(
+            "Bloque %s aceptado. Ganador: %s",
+            block_id,
+            worker_id,
+        )
 
         metrics.blocks_accepted_total.inc()
         metrics.record_task_result(
