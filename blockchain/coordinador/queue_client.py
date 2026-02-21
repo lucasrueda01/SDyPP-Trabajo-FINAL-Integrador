@@ -12,7 +12,13 @@ _channel = None
 
 def init_publisher():
     global _connection, _channel
-    if _connection is None or _connection.is_closed:
+
+    if (
+        _connection is None
+        or _connection.is_closed
+        or _channel is None
+        or _channel.is_closed
+    ):
         _connection, _channel = queueConnect()
 
 
@@ -30,7 +36,7 @@ def queueConnect(delay=5):
                         settings.RABBIT_USER,
                         settings.RABBIT_PASSWORD,
                     ),
-                    heartbeat=600,
+                    heartbeat=30,
                     blocked_connection_timeout=300,
                 )
 
@@ -85,17 +91,41 @@ def encolar(transaction):
         )
 
 
-def publicar_a_pool_manager(block, channel):
+def publicar_a_pool_manager(block):
+    global _connection, _channel
+
     props = pika.BasicProperties(
         delivery_mode=2,
         message_id=block["blockId"],
         content_type="application/json",
     )
 
-    channel.basic_publish(
-        exchange="",
-        routing_key="pool_tasks",
-        body=json.dumps(block),
-        properties=props,
-    )
-    logger.debug(f"Bloque {block['blockId']} publicado a pool manager")
+    try:
+        # 🔎 Validar conexión y canal
+        init_publisher()
+
+        _channel.basic_publish(
+            exchange="",
+            routing_key="pool_tasks",
+            body=json.dumps(block),
+            properties=props,
+        )
+
+        logger.debug(f"Bloque {block['blockId']} publicado a pool manager")
+
+    except Exception as e:
+        logger.warning(f"Error publicando bloque {block['blockId']}: {e}")
+        logger.info("Reintentando publicación tras reconectar...")
+
+        # 🔁 Forzar reconexión
+        _connection, _channel = queueConnect()
+
+        # 🔁 Reintento
+        _channel.basic_publish(
+            exchange="",
+            routing_key="pool_tasks",
+            body=json.dumps(block),
+            properties=props,
+        )
+
+        logger.info(f"Bloque {block['blockId']} publicado tras reconexión")
