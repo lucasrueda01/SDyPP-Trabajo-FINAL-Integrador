@@ -55,6 +55,7 @@ def addTransaction():
     tx = request.json
 
     if not validarTransaction(tx):
+        logger.warning(f"TX inválida recibida: {tx}")
         return "Transacción inválida", 400
 
     metrics.transactions_total.inc()

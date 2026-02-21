@@ -10,7 +10,30 @@ def calculateHash(data):
 
 def validarTransaction(transaction):
     required = ["origen", "destino", "monto"]
-    return all(k in transaction and transaction[k] for k in required)
+
+    # Verificar que existan las keys
+    if not all(k in transaction for k in required):
+        return False
+
+    origen = transaction["origen"]
+    destino = transaction["destino"]
+    monto = transaction["monto"]
+
+    # Validar strings no vacíos
+    if not isinstance(origen, str) or not origen.strip():
+        return False
+
+    if not isinstance(destino, str) or not destino.strip():
+        return False
+
+    # Validar monto
+    if not isinstance(monto, (int, float)):
+        return False
+
+    if monto <= 0:
+        return False
+
+    return True
 
 
 def construirNuevoBloque(block, prev, result_hash, nonce):
