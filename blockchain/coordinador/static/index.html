@@ -178,17 +178,6 @@
       </div>
     </header>
 
-    <div class="container">
-      <!-- CONECTAR -->
-      <div class="card">
-        <h3>Conectar Coordinador</h3>
-        <input
-          id="apiUrlInput"
-          placeholder="IP o dominio (ej: 34.10.20.3:5000)"
-        />
-        <button onclick="setApiUrl()">Conectar</button>
-      </div>
-
       <!-- CONFIG -->
       <div class="card">
         <h3>Configuración del Sistema</h3>
@@ -365,7 +354,7 @@
       async function enviarBatch() {
         const cantidad = parseInt(batchCantidad.value);
         const batchSize = 100;
-        const delayBetweenBatches = 10 + Math.random() * 40; // entre 10 y 50ms, simulando tráfico real
+        const delayBetweenBatches = 0
 
         for (let i = 0; i < cantidad; i += batchSize) {
           const requests = [];
@@ -378,7 +367,7 @@
                 body: JSON.stringify({
                   origen: "BatchUser" + j,
                   destino: "Destino" + j,
-                  monto: Math.floor(Math.random() * 1000) + 1,
+                  monto: Math.floor(Math.random() * 10000) + 1,
                 }),
               }),
             );
@@ -405,7 +394,7 @@
         const data = await res.json();
 
         if (data.length > 0) {
-          lastHash.innerText = data[data.length - 1].hash;
+          lastHash.innerText = data[0].hash;
         }
 
         chainTable.innerHTML = "";
@@ -523,6 +512,7 @@
 
       setInterval(checkStatus, 5000);
       setInterval(loadHeight, 5000);
+      loadConfig();
     </script>
   </body>
 </html>
