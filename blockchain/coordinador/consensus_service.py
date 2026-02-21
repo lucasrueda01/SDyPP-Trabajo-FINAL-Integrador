@@ -7,7 +7,6 @@ from redis_client import (
     postBlock,
     release_claim,
     getUltimoBlock,
-    release_pending_slot,
 )
 from storage_client import descargarBlock, borrarBlock
 from blockchain_service import calculateHash, construirNuevoBloque
