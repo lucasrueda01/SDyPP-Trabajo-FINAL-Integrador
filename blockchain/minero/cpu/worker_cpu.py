@@ -326,6 +326,7 @@ def on_message_received(channel, method, _, body):
                 "type": "cpu",
                 "processingTime": resultado["processingTime"],
                 "hashRate": resultado["hashRate"],
+                "intentos": resultado["intentos"],
                 "hash": resultado["hash_md5_result"],
                 "result": resultado["numero"],
             }

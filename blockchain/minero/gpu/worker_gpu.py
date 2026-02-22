@@ -319,6 +319,7 @@ def on_message_received(channel, method, _, body):
                     "processingTime": processing_time,
                     "hashRate": hash_rate,
                     "hash": resultado["hash_md5_result"],
+                    "intentos": intentos,
                     "result": str(resultado["numero"]),
                 }
             )

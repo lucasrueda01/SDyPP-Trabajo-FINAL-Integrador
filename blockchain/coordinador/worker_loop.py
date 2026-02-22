@@ -79,7 +79,6 @@ def processPackages(bucket):
 
             # 5️⃣ Construcción del bloque
             blockId = str(uuid.uuid4())
-            metrics.blocks_created_total.inc()
 
             block = {
                 "blockId": blockId,
@@ -104,6 +103,11 @@ def processPackages(bucket):
 
             redis.set(f"block:{blockId}:status", "PENDING")
             redis.set(f"block:{blockId}:prev_hash", prev_hash)
+            redis.set(f"block:{blockId}:created_at", time.time())
+            
+            metrics.record_block_created()
+            pending_count = len(redis.keys("block:*:status"))
+            metrics.set_pending_blocks(pending_count)
 
             subirBlock(bucket, block)
 
@@ -113,7 +117,6 @@ def processPackages(bucket):
             except Exception:
                 logger.warning("Error publicando bloque. Reintentando...")
                 publicar_a_pool_manager(block)
-
             time.sleep(0.05)
 
         except Exception:

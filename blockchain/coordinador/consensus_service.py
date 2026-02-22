@@ -1,6 +1,8 @@
 import logging
+from time import time
 import metrics
 from redis_client import (
+    get_blockchain_height,
     get_redis,
     existBlock,
     is_block_sealed,
@@ -24,10 +26,12 @@ def procesar_resultado_worker(data, bucket):
     #     "processingTime": processing_time,
     #     "hashRate": hashes por segundo,
     #     "hash": hash encontrado,
+    #     "intentos": cantidad de intentos realizados
     #     "result": nonce encontrado
     # }
 
     redisClient = get_redis()
+    validation_start = time.time()
 
     # 0) Validación básica
     if not data or not data.get("result"):
@@ -44,11 +48,11 @@ def procesar_resultado_worker(data, bucket):
 
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
+    creation_key = f"block:{block_id}:created_at"
 
     # 1) Si ya está sellado, ignorar
     if is_block_sealed(block_id):
         metrics.record_task_result(worker_type=worker_type, accepted=False)
-        metrics.blocks_rejected_total.inc()
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s",
             block_id,
@@ -59,7 +63,6 @@ def procesar_resultado_worker(data, bucket):
     # 2) Claim exclusivo
     claim_successful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
     if not claim_successful:
-        metrics.blocks_rejected_total.inc()
         metrics.record_task_result(worker_type=worker_type, accepted=False)
         logger.debug(
             "Bloque %s ya reclamado. Recibido del worker %s",
@@ -74,7 +77,6 @@ def procesar_resultado_worker(data, bucket):
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
                 "Bloque %s ya cerrado (no existe temporal). Recibido del worker %s",
@@ -89,7 +91,6 @@ def procesar_resultado_worker(data, bucket):
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
             logger.debug(
                 "Bloque %s tiene hash inválido. Recibido del worker %s",
@@ -103,6 +104,7 @@ def procesar_resultado_worker(data, bucket):
         prev_hash_actual = prev_actual["blockchainContent"] if prev_actual else "0"
 
         if block["blockchainContent"] != prev_hash_actual:
+            metrics.record_block_rejected(stale=True)
             orphan_key = f"block:{block_id}:orphaned"
 
             was_set = redisClient.set(orphan_key, "1", nx=True)
@@ -117,9 +119,11 @@ def procesar_resultado_worker(data, bucket):
                     encolar(tx)
 
             release_claim(claim_key, worker_id)
-            metrics.blocks_rejected_total.inc()
             metrics.record_task_result(worker_type=worker_type, accepted=False)
-
+            # Liberar lock porque este bloque ya no es válido
+            prev_hash = block["blockchainContent"]
+            lock_key = f"create_lock:{prev_hash}"
+            redisClient.delete(lock_key)
             logger.debug(
                 "Fork detectado para bloque %s. Prev hash cambió.",
                 block_id,
@@ -128,6 +132,8 @@ def procesar_resultado_worker(data, bucket):
 
         # 6) Sellar bloque
         redisClient.set(status_key, "SEALED")
+        pending_count = len(redisClient.keys("block:*:status"))
+        metrics.set_pending_blocks(pending_count)
 
         # 7) Construir bloque final
         newBlock = construirNuevoBloque(
@@ -138,6 +144,11 @@ def procesar_resultado_worker(data, bucket):
         )
 
         postBlock(newBlock)
+        metrics.set_block_height(get_blockchain_height())
+        # Liberar lock del prev_hash
+        prev_hash = block["blockchainContent"]
+        lock_key = f"create_lock:{prev_hash}"
+        redisClient.delete(lock_key)
 
         # 8) Borrar bloque temporal
         borrarBlock(bucket, block_id)
@@ -148,13 +159,31 @@ def procesar_resultado_worker(data, bucket):
             worker_id,
         )
 
-        metrics.blocks_accepted_total.inc()
+        # =========================
+        # MÉTRICAS IMPORTANTES
+        # =========================
+
+        # ✔ Bloque aceptado
+        metrics.record_block_accepted()
+
+        # ✔ Registrar métricas del worker
         metrics.record_task_result(
             worker_type=worker_type,
             accepted=True,
             processing_time=data.get("processingTime"),
-            hash_rate=data.get("hashRate"),
+            attempts=data.get("intentos"),
+            hash_rate_value=data.get("hashRate"),
         )
+
+        # ✔ Latencia total del bloque
+        created_at = redisClient.get(creation_key)
+        if created_at:
+            block_latency = time.time() - float(created_at)
+            metrics.record_block_latency(block_latency)
+
+        # ✔ Tiempo de validación coordinador
+        validation_time = time.time() - validation_start
+        metrics.record_validation_time(validation_time)
 
         return {"message": "Bloque aceptado"}, 201
 
