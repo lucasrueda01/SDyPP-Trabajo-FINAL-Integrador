@@ -49,7 +49,6 @@ def procesar_resultado_worker(data, bucket):
 
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
-    creation_key = f"block:{block_id}:created_at"
 
     # 1) Si ya está sellado, ignorar
     if is_block_sealed(block_id):
@@ -152,7 +151,7 @@ def procesar_resultado_worker(data, bucket):
         borrarBlock(bucket, block_id)
 
         logger.debug(
-            "Bloque %s aceptado. Ganador: %s. Intentos: %d.s",
+            "Bloque %s aceptado. Ganador: %s. Intentos: %d",
             block_id,
             worker_id,
             data.get("intentos", 0),
@@ -175,10 +174,7 @@ def procesar_resultado_worker(data, bucket):
         )
 
         # ✔ Latencia total del bloque
-        created_at = redisClient.get(creation_key)
-        if created_at:
-            block_latency = time.time() - float(created_at)
-            metrics.record_block_latency(block_latency)
+        metrics.record_block_latency(block["latency"])
 
         # ✔ Tiempo de validación coordinador
         validation_time = time.time() - validation_start

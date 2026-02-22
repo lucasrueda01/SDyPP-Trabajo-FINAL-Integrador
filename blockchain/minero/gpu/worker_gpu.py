@@ -235,6 +235,7 @@ def on_message_received(channel, method, _, body):
             "prefijo",
             "baseStringChain",
             "blockchainContent",
+            "published_at",
         )
 
         if not all(k in data for k in required):
@@ -246,6 +247,8 @@ def on_message_received(channel, method, _, body):
 
         prefix = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
+        receive_time = time.time()
+        latency = receive_time - data["published_at"]
 
         if "nonce_start" in data and "nonce_end" in data:
             from_nonce = int(data["nonce_start"])
@@ -296,6 +299,7 @@ def on_message_received(channel, method, _, body):
                     "hashRate": 0.0,
                     "hash": "",
                     "result": "",
+                    "latency": latency,
                 }
             )
         else:
@@ -321,6 +325,7 @@ def on_message_received(channel, method, _, body):
                     "hash": resultado["hash_md5_result"],
                     "intentos": intentos,
                     "result": str(resultado["numero"]),
+                    "latency": latency,
                 }
             )
 

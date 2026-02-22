@@ -87,6 +87,7 @@ def processPackages(bucket):
                 "baseStringChain": settings.BASE_STRING_CHAIN,
                 "blockchainContent": prev_hash,
                 "numMaxRandom": runtime_config["max_random"],
+                "published_at": time.time()
             }
 
             if runtime_config.get("mining_mode"):

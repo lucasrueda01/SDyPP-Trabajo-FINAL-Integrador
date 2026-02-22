@@ -2,6 +2,7 @@ import redis
 import json
 import logging
 import config.settings as settings
+import metrics
 
 logger = logging.getLogger("coordinator")
 
@@ -129,5 +130,6 @@ def reset_blockchain_state():
         for key in redis_client.scan_iter(pattern):
             redis_client.delete(key)
             deleted += 1
-
+            
+    metrics.set_block_height(0)
     return deleted

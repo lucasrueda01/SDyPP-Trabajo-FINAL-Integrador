@@ -2,6 +2,7 @@ import json
 import hashlib
 from threading import Thread
 import random
+from numpy import block
 import requests
 import time
 import sys
@@ -264,6 +265,7 @@ def on_message_received(channel, method, _, body):
             "baseStringChain",
             "blockchainContent",
             "prefijo",
+            "published_at",
         )
         if not all(k in data for k in required_fields):
             logger.error(
@@ -275,7 +277,8 @@ def on_message_received(channel, method, _, body):
             return
 
         block_id = data["blockId"]
-
+        receive_time = time.time()
+        latency = receive_time - block["published_at"]
         prefijo = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 
@@ -329,6 +332,7 @@ def on_message_received(channel, method, _, body):
                 "intentos": resultado["intentos"],
                 "hash": resultado["hash_md5_result"],
                 "result": resultado["numero"],
+                "latency": latency,
             }
 
             status = enviar_resultado(dataResult)
@@ -364,6 +368,7 @@ def on_message_received(channel, method, _, body):
                 "intentos": resultado["intentos"],
                 "hash": "",
                 "result": "",
+                "latency": latency,
             }
             enviar_resultado(dataResult)
 
