@@ -2,7 +2,6 @@ import json
 import hashlib
 from threading import Thread
 import random
-from numpy import block
 import requests
 import time
 import sys
@@ -278,7 +277,7 @@ def on_message_received(channel, method, _, body):
 
         block_id = data["blockId"]
         receive_time = time.time()
-        latency = receive_time - block["published_at"]
+        latency = receive_time - data["published_at"]
         prefijo = data["prefijo"]
         hash_base = data["baseStringChain"] + data["blockchainContent"]
 
