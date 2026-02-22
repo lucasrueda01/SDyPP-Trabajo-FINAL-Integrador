@@ -177,7 +177,7 @@ def record_task_result(
             mining_time_seconds.labels(worker_type=worker_type).observe(processing_time)
 
         if attempts is not None:
-            block_attempts.labels(worker_type=worker_type).observe(attempts)
+            block_attempts.labels(worker_type=worker_type).observe(float(attempts))
 
         if hash_rate_value is not None:
             hash_rate.labels(worker_type=worker_type).set(hash_rate_value)

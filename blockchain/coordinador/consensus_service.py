@@ -152,9 +152,10 @@ def procesar_resultado_worker(data, bucket):
         borrarBlock(bucket, block_id)
 
         logger.debug(
-            "Bloque %s aceptado. Ganador: %s",
+            "Bloque %s aceptado. Ganador: %s. Intentos: %d.s",
             block_id,
             worker_id,
+            data.get("intentos", 0),
         )
 
         # =========================

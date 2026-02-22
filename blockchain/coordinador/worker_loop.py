@@ -19,7 +19,7 @@ def processPackages(bucket):
     connection, channel = queueConnect()
 
     MAX_TX = settings.MAX_TRANSACTIONS_PER_BLOCK
-    MAX_WAIT_SECONDS = 0.5  # ventana para acumular transacciones
+    MAX_WAIT_SECONDS = 1 # ventana para acumular transacciones
 
     while True:
         try:
