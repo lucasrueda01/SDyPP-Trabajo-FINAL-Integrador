@@ -144,7 +144,7 @@ def procesar_resultado_worker(data, bucket):
         )
 
         postBlock(newBlock)
-        metrics.set_block_height(get_blockchain_height())
+        metrics.set_block_height(get_blockchain_height()["height"])
         # Liberar lock del prev_hash
         prev_hash = block["blockchainContent"]
         lock_key = f"create_lock:{prev_hash}"
