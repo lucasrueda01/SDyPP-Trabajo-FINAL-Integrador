@@ -45,6 +45,7 @@ def procesar_resultado_worker(data, bucket):
     block_id = data["blockId"]
     worker_id = data.get("workerId", "unknown")
     worker_type = data.get("type", "cpu")
+    lock_key = None
 
     status_key = f"block:{block_id}:status"
     claim_key = f"block:{block_id}:claim"
@@ -85,6 +86,7 @@ def procesar_resultado_worker(data, bucket):
             )
             return {"message": "Bloque ya cerrado"}, 202
 
+        lock_key = f"create_lock:{block['blockchainContent']}"
         # 4) Validar hash
         hash_base = block["baseStringChain"] + block["blockchainContent"]
         hash_calc = calculateHash(data["result"] + hash_base)
@@ -145,10 +147,6 @@ def procesar_resultado_worker(data, bucket):
 
         postBlock(newBlock)
         metrics.set_block_height(get_blockchain_height()["height"])
-        # Liberar lock del prev_hash
-        prev_hash = block["blockchainContent"]
-        lock_key = f"create_lock:{prev_hash}"
-        redisClient.delete(lock_key)
 
         # 8) Borrar bloque temporal
         borrarBlock(bucket, block_id)
@@ -196,3 +194,6 @@ def procesar_resultado_worker(data, bucket):
             block_id,
         )
         return {"message": "Error interno"}, 500
+    finally:
+        if lock_key:
+            redisClient.delete(lock_key)
