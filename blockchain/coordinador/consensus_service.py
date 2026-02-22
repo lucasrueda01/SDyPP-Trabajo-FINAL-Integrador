@@ -174,7 +174,7 @@ def procesar_resultado_worker(data, bucket):
         )
 
         # ✔ Latencia total del bloque
-        metrics.record_block_latency(block["latency"])
+        metrics.record_block_latency(data["latency"])
 
         # ✔ Tiempo de validación coordinador
         validation_time = time.time() - validation_start
