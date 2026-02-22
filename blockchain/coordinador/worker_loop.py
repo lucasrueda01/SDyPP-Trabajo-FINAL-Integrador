@@ -31,7 +31,7 @@ def processPackages(bucket):
 
             # 2️⃣ Intentar lock antes de consumir
             lock_key = f"create_lock:{prev_hash}"
-            lock_acquired = redis.set(lock_key, "1", nx=True, ex=10)
+            lock_acquired = redis.set(lock_key, "1", nx=True, ex=120)
 
             if not lock_acquired:
                 time.sleep(0.1)

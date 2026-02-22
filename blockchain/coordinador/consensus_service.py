@@ -1,6 +1,6 @@
 import logging
-from time import time
 import metrics
+import time
 from redis_client import (
     get_blockchain_height,
     get_redis,
