@@ -67,7 +67,7 @@ errors_total = Counter(
 tasks_total = Counter(
     "coordinator_tasks_total",
     "Resultados recibidos de workers",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
 )
 
 tasks_accepted_total = Counter(
