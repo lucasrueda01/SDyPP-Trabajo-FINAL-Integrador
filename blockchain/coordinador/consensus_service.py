@@ -39,9 +39,6 @@ def procesar_resultado_worker(data, bucket):
             worker_type=worker_type,
             worker_id=worker_id,
             accepted=False,
-            processing_time=data.get("processingTime"),
-            attempts=data.get("intentos"),
-            hash_rate_value=data.get("hashRate"),
         )
         logger.debug(
             "Resultado inválido recibido del worker %s | Bloque %s",
@@ -64,9 +61,6 @@ def procesar_resultado_worker(data, bucket):
             worker_type=worker_type,
             worker_id=worker_id,
             accepted=False,
-            processing_time=data.get("processingTime"),
-            attempts=data.get("intentos"),
-            hash_rate_value=data.get("hashRate"),
         )
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s",
@@ -82,9 +76,6 @@ def procesar_resultado_worker(data, bucket):
             worker_type=worker_type,
             worker_id=worker_id,
             accepted=False,
-            processing_time=data.get("processingTime"),
-            attempts=data.get("intentos"),
-            hash_rate_value=data.get("hashRate"),
         )
         logger.debug(
             "Bloque %s ya reclamado. Recibido del worker %s",
@@ -103,9 +94,6 @@ def procesar_resultado_worker(data, bucket):
                 worker_type=worker_type,
                 worker_id=worker_id,
                 accepted=False,
-                processing_time=data.get("processingTime"),
-                attempts=data.get("intentos"),
-                hash_rate_value=data.get("hashRate"),
             )
             logger.debug(
                 "Bloque %s ya cerrado (no existe temporal). Recibido del worker %s",
@@ -125,9 +113,6 @@ def procesar_resultado_worker(data, bucket):
                 worker_type=worker_type,
                 worker_id=worker_id,
                 accepted=False,
-                processing_time=data.get("processingTime"),
-                attempts=data.get("intentos"),
-                hash_rate_value=data.get("hashRate"),
             )
             logger.debug(
                 "Bloque %s tiene hash inválido. Recibido del worker %s",
@@ -160,9 +145,6 @@ def procesar_resultado_worker(data, bucket):
                 worker_type=worker_type,
                 worker_id=worker_id,
                 accepted=False,
-                processing_time=data.get("processingTime"),
-                attempts=data.get("intentos"),
-                hash_rate_value=data.get("hashRate"),
             )
             # Liberar lock porque este bloque ya no es válido
             prev_hash = block["blockchainContent"]
