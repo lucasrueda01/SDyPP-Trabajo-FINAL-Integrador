@@ -351,11 +351,12 @@ def on_message_received(channel, method, _, body):
                 )
         else:
             logger.info(
-                "[%s] No se encontró solución | block=%s | time=%.2fs | attempts=%d",
+                "[%s] No se encontró solución | block=%s | time=%.2fs | attempts=%d | H/s=%.2f",
                 WORKER_ID,
                 block_id,
                 resultado["processingTime"],
                 resultado["intentos"],
+                resultado["hashRate"],
             )
 
             dataResult = {

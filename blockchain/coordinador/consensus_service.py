@@ -52,7 +52,7 @@ def procesar_resultado_worker(data, bucket):
 
     # 1) Si ya está sellado, ignorar
     if is_block_sealed(block_id):
-        metrics.record_task_result(worker_type=worker_type, accepted=False)
+        metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s",
             block_id,
@@ -63,7 +63,7 @@ def procesar_resultado_worker(data, bucket):
     # 2) Claim exclusivo
     claim_successful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
     if not claim_successful:
-        metrics.record_task_result(worker_type=worker_type, accepted=False)
+        metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
         logger.debug(
             "Bloque %s ya reclamado. Recibido del worker %s",
             block_id,

@@ -284,10 +284,12 @@ def on_message_received(channel, method, _, body):
 
         if not resultado.get("hash_md5_result"):
             logger.info(
-                "[%s] No se encontró solución | block=%s | time=%.2fs",
+                "[%s] No se encontró solución | block=%s | time=%.2fs | H/s=%.2f | attempts=%d",
                 WORKER_ID,
                 block_id,
                 processing_time,
+                resultado.get("hashRate", 0.0),
+                resultado.get("intentos", to_nonce - from_nonce),
             )
 
             enviar_resultado(
@@ -296,7 +298,7 @@ def on_message_received(channel, method, _, body):
                     "workerId": WORKER_ID,
                     "type": "gpu",
                     "processingTime": processing_time,
-                    "hashRate": 0.0,
+                    "hashRate": resultado.get("hashRate", 0.0),
                     "hash": "",
                     "result": "",
                     "latency": latency,
@@ -304,15 +306,16 @@ def on_message_received(channel, method, _, body):
             )
         else:
             intentos = int(resultado.get("intentos", to_nonce - from_nonce))
-            hash_rate = intentos / processing_time if processing_time > 0 else 0
+            hash_rate = resultado.get("hashRate", intentos / processing_time if processing_time > 0 else 0)
 
             logger.info(
-                "[%s] Solución encontrada | block=%s | nonce=%s | time=%.2fs | H/s=%.2f",
+                "[%s] Solución encontrada | block=%s | nonce=%s | time=%.2fs | H/s=%.2f | attempts=%d",
                 WORKER_ID,
                 block_id,
                 resultado["numero"],
                 processing_time,
                 hash_rate,
+                intentos,
             )
 
             status = enviar_resultado(
