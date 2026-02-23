@@ -77,7 +77,7 @@ def procesar_resultado_worker(data, bucket):
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, accepted=False)
+            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
             logger.debug(
                 "Bloque %s ya cerrado (no existe temporal). Recibido del worker %s",
                 block_id,
@@ -92,7 +92,7 @@ def procesar_resultado_worker(data, bucket):
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, accepted=False)
+            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
             logger.debug(
                 "Bloque %s tiene hash inválido. Recibido del worker %s",
                 block_id,
@@ -120,7 +120,7 @@ def procesar_resultado_worker(data, bucket):
                     encolar(tx)
 
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, accepted=False)
+            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
             # Liberar lock porque este bloque ya no es válido
             prev_hash = block["blockchainContent"]
             lock_key = f"create_lock:{prev_hash}"
@@ -167,6 +167,7 @@ def procesar_resultado_worker(data, bucket):
         # ✔ Registrar métricas del worker
         metrics.record_task_result(
             worker_type=worker_type,
+            worker_id=worker_id,
             accepted=True,
             processing_time=data.get("processingTime"),
             attempts=data.get("intentos"),

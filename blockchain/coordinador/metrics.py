@@ -73,13 +73,13 @@ tasks_total = Counter(
 tasks_accepted_total = Counter(
     "coordinator_tasks_accepted_total",
     "Bloques aceptados por tipo de worker",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
 )
 
 tasks_rejected_total = Counter(
     "coordinator_tasks_rejected_total",
     "Bloques rechazados por tipo de worker",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
 )
 
 # =====================
@@ -90,7 +90,7 @@ tasks_rejected_total = Counter(
 block_attempts = Histogram(
     "coordinator_block_attempts",
     "Intentos necesarios para minar un bloque",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
     buckets=(1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9),
 )
 
@@ -98,7 +98,7 @@ block_attempts = Histogram(
 mining_time_seconds = Histogram(
     "coordinator_mining_time_seconds",
     "Tiempo de minería reportado por el worker (segundos)",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
     buckets=(0.1, 0.5, 1, 2, 5, 10, 20, 60, 120),
 )
 
@@ -106,7 +106,7 @@ mining_time_seconds = Histogram(
 hash_rate = Gauge(
     "coordinator_hash_rate",
     "Hash rate reportado por el worker",
-    ["worker_type"],
+    ["worker_type", "worker_id"],
 )
 
 # =====================
@@ -159,7 +159,7 @@ def record_block_rejected(stale=False):
 
 
 def record_task_result(
-    worker_type, accepted, processing_time=None, attempts=None, hash_rate_value=None
+    worker_type, worker_id, accepted, processing_time=None, attempts=None, hash_rate_value=None
 ):
     """
     Registra resultado enviado por un worker.
@@ -168,22 +168,22 @@ def record_task_result(
     if worker_type not in ("cpu", "gpu"):
         worker_type = "cpu"
 
-    tasks_total.labels(worker_type=worker_type).inc()
+    tasks_total.labels(worker_type=worker_type, worker_id=worker_id).inc()
 
     if accepted:
-        tasks_accepted_total.labels(worker_type=worker_type).inc()
+        tasks_accepted_total.labels(worker_type=worker_type, worker_id=worker_id).inc()
 
         if processing_time is not None:
-            mining_time_seconds.labels(worker_type=worker_type).observe(processing_time)
+            mining_time_seconds.labels(worker_type=worker_type, worker_id=worker_id).observe(processing_time)
 
         if attempts is not None:
-            block_attempts.labels(worker_type=worker_type).observe(float(attempts))
+            block_attempts.labels(worker_type=worker_type, worker_id=worker_id).observe(float(attempts))
 
         if hash_rate_value is not None:
-            hash_rate.labels(worker_type=worker_type).set(hash_rate_value)
+            hash_rate.labels(worker_type=worker_type, worker_id=worker_id).set(hash_rate_value)
 
     else:
-        tasks_rejected_total.labels(worker_type=worker_type).inc()
+        tasks_rejected_total.labels(worker_type=worker_type, worker_id=worker_id).inc()
 
 
 def record_block_latency(seconds):
