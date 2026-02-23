@@ -35,6 +35,14 @@ def procesar_resultado_worker(data, bucket):
 
     # 0) Validación básica
     if not data or not data.get("result"):
+        metrics.record_task_result(
+            worker_type=worker_type,
+            worker_id=worker_id,
+            accepted=False,
+            processing_time=data.get("processingTime"),
+            attempts=data.get("intentos"),
+            hash_rate_value=data.get("hashRate"),
+        )
         logger.debug(
             "Resultado inválido recibido del worker %s | Bloque %s",
             data.get("workerId", "unknown"),
@@ -52,7 +60,14 @@ def procesar_resultado_worker(data, bucket):
 
     # 1) Si ya está sellado, ignorar
     if is_block_sealed(block_id):
-        metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
+        metrics.record_task_result(
+            worker_type=worker_type,
+            worker_id=worker_id,
+            accepted=False,
+            processing_time=data.get("processingTime"),
+            attempts=data.get("intentos"),
+            hash_rate_value=data.get("hashRate"),
+        )
         logger.debug(
             "Bloque %s ya cerrado. Recibido del worker %s",
             block_id,
@@ -63,7 +78,14 @@ def procesar_resultado_worker(data, bucket):
     # 2) Claim exclusivo
     claim_successful = redisClient.set(claim_key, worker_id, nx=True, ex=15)
     if not claim_successful:
-        metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
+        metrics.record_task_result(
+            worker_type=worker_type,
+            worker_id=worker_id,
+            accepted=False,
+            processing_time=data.get("processingTime"),
+            attempts=data.get("intentos"),
+            hash_rate_value=data.get("hashRate"),
+        )
         logger.debug(
             "Bloque %s ya reclamado. Recibido del worker %s",
             block_id,
@@ -77,7 +99,14 @@ def procesar_resultado_worker(data, bucket):
         if block is None:
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
+            metrics.record_task_result(
+                worker_type=worker_type,
+                worker_id=worker_id,
+                accepted=False,
+                processing_time=data.get("processingTime"),
+                attempts=data.get("intentos"),
+                hash_rate_value=data.get("hashRate"),
+            )
             logger.debug(
                 "Bloque %s ya cerrado (no existe temporal). Recibido del worker %s",
                 block_id,
@@ -92,7 +121,14 @@ def procesar_resultado_worker(data, bucket):
 
         if hash_calc != data["hash"]:
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
+            metrics.record_task_result(
+                worker_type=worker_type,
+                worker_id=worker_id,
+                accepted=False,
+                processing_time=data.get("processingTime"),
+                attempts=data.get("intentos"),
+                hash_rate_value=data.get("hashRate"),
+            )
             logger.debug(
                 "Bloque %s tiene hash inválido. Recibido del worker %s",
                 block_id,
@@ -120,7 +156,14 @@ def procesar_resultado_worker(data, bucket):
                     encolar(tx)
 
             release_claim(claim_key, worker_id)
-            metrics.record_task_result(worker_type=worker_type, worker_id=worker_id, accepted=False)
+            metrics.record_task_result(
+                worker_type=worker_type,
+                worker_id=worker_id,
+                accepted=False,
+                processing_time=data.get("processingTime"),
+                attempts=data.get("intentos"),
+                hash_rate_value=data.get("hashRate"),
+            )
             # Liberar lock porque este bloque ya no es válido
             prev_hash = block["blockchainContent"]
             lock_key = f"create_lock:{prev_hash}"

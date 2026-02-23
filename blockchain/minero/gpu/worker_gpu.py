@@ -302,6 +302,7 @@ def on_message_received(channel, method, _, body):
                     "hash": "",
                     "result": "",
                     "latency": latency,
+                    "intentos": resultado.get("intentos", to_nonce - from_nonce),
                 }
             )
         else:

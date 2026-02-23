@@ -364,7 +364,7 @@ def on_message_received(channel, method, _, body):
                 "workerId": WORKER_ID,
                 "type": "cpu",
                 "processingTime": resultado["processingTime"],
-                "hashRate": 0.0,
+                "hashRate": resultado["hashRate"],
                 "intentos": resultado["intentos"],
                 "hash": "",
                 "result": "",
