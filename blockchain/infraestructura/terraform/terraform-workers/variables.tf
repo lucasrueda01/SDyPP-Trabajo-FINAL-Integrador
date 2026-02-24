@@ -9,7 +9,7 @@ variable "zone"   { default = "us-central1-a" }
 variable "cluster_name" { default = "cluster-blockchain" }
 
 # worker VMs
-variable "worker_cpu_count" { default = 2 }
+variable "worker_cpu_count" { default = 3 }
 variable "worker_machine_type" { default = "e2-small" }
 
 
