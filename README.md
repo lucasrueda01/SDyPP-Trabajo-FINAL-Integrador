@@ -70,11 +70,9 @@ Para este proyecto se utilizó hardware local para pruebas con el Worker GPU y s
 
 Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del sistema mediante estos links en conjunto con el **INGRESS_IP** y las credenciales. Se proveen los links del actual despliegue:
 
-- [Dashboard del Coordinador](http://coordinator.136.119.226.21.nip.io)
+- [Dashboard del Coordinador](http://coordinator.136.119.226.21.nip.io) ![Estado](https://img.shields.io/website?url=http://coordinator.136.119.226.21.nip.io/status)
 - [Grafana](http://grafana.136.119.226.21.nip.io)
 - [Prometheus](http://prometheus.136.119.226.21.nip.io)
-
- ### Estado del coordinador: ![Estado](https://img.shields.io/website?url=http://coordinator.136.119.226.21.nip.io/status)
 
 ## Documentación
 
