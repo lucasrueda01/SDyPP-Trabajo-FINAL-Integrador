@@ -91,7 +91,7 @@ Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del
 ### Diagrama de bajo nivel
 ![Diagrama de alto nivel](diagramas/DiagramaBajoNivel.png)
 
-### [Informe Final](https://docs.google.com/document/d/1EiJcK0CmU8JtHDLXZTYatXBYHDUkEhaPS4ySJ7yEGuk/edit?usp=sharing)
+### [Informe Final](https://drive.google.com/file/d/16u9M8bSoj8KVOskL-DjvvHXRzyw-ledR/view?usp=sharing)
 
 ### [Consigna](https://drive.google.com/file/d/1MRHyacNmx8XRIm6SIeHQY_1l-WEYR-Dx/view?usp=sharing)
 
