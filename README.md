@@ -70,17 +70,26 @@ Para este proyecto se utilizó hardware local para pruebas con el Worker GPU y s
 
 Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del sistema mediante estos links en conjunto con el **INGRESS_IP** y las credenciales. Se proveen los links del actual despliegue:
 
-- [Dashboard del Coordinador](http://coordinator.136.119.226.21.nip.io) ![Estado](https://img.shields.io/website?url=http://coordinator.136.119.226.21.nip.io/status)
+
+- [Dashboard del Coordinador](http://coordinator.136.119.226.21.nip.io) 
 - [Grafana](http://grafana.136.119.226.21.nip.io)
 - [Prometheus](http://prometheus.136.119.226.21.nip.io)
+
+### Estados
+
+[![Coordinador](https://img.shields.io/website?url=http://coordinator.136.119.226.21.nip.io/status&label=Coordinador&style=for-the-badge)](http://coordinator.136.119.226.21.nip.io)
+
+[![Grafana](https://img.shields.io/website?url=http://grafana.136.119.226.21.nip.io&label=Grafana&style=for-the-badge)](http://grafana.136.119.226.21.nip.io)
+
+[![Prometheus](https://img.shields.io/website?url=http://prometheus.136.119.226.21.nip.io/-/healthy&label=Prometheus&style=for-the-badge)](http://prometheus.136.119.226.21.nip.io)
 
 ## Documentación
 
 ### Diagrama de alto nivel
-![Diagrama de alto nive](diagramas/DiagramaAltoNivel.png)
+![Diagrama de alto nivel](diagramas/DiagramaAltoNivel.png)
 
 ### Diagrama de bajo nivel
-![Diagrama de alto nive](diagramas/DiagramaBajoNivel.png)
+![Diagrama de alto nivel](diagramas/DiagramaBajoNivel.png)
 
 ### [Informe Final](https://docs.google.com/document/d/1EiJcK0CmU8JtHDLXZTYatXBYHDUkEhaPS4ySJ7yEGuk/edit?usp=sharing)
 
