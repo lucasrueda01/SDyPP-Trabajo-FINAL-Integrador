@@ -7,7 +7,7 @@
 
 ## Descripción
 
-Este trabajo implementa una arquitectura blockchain distribuida
+En este trabajo implementa una arquitectura blockchain distribuida
 compuesta por un Coordinador, Pool Manager, CPU Scaler y múltiples workers (CPU y
 GPU), desplegada sobre Kubernetes en Google Cloud.
 
@@ -22,14 +22,14 @@ La solución está compuesta por:
 -   **Coordinador**: Construye bloques, valida soluciones y mantiene el
     estado de la blockchain. Provee una interfaz web para el uso del sistema.
 -   **Pool Manager**: Distribuye bloques a los workers y mantiene registro de estos.
--   **Workers CPU**: Instancias desplegadas en Google Cloud.
--   **Worker GPU**: Ejecutado en hardware externo.
+-   **Workers CPU**: Instancias desplegadas en Google Cloud. Se encargan de ejecutar el  algoritmo de minado en CPU.
+-   **Worker GPU**: Ejecutado en hardware externo. Se encarga de ejecutar el algoritmo de minado GPU en CUDA.
 -   **CPU Scaler**: Escala CPUs dependiendo de los recursos disponibles.
 -   **RabbitMQ**: Cola de mensajes para distribución de tareas.
--   **Redis**: Coordinación distribuida y manejo de locks.
--   **Prometheus + Grafana**: Monitoreo y métricas.
--   **NGINX Ingress**: Exposición de servicios.
--   **Terraform**: Aprovisionamiento de infraestructura.
+-   **Redis**: Coordinación distribuida y manejo de locks. Mantiene el estado de la blockchain.
+-   **Prometheus + Grafana + Loki**: Monitoreo y métricas.
+-   **NGINX Ingress**: Exposición de servicios al exterior.
+-   **Terraform**: Declaración de infraestructura.
 -   **GitHub Actions**: Pipelines de despliegue.
 
 
@@ -61,7 +61,7 @@ Aplicar conceptos de:
 
 Actualmente no se implementa cifrado TLS interno ni externo y los
 workers externos se conectan mediante endpoints públicos. Se proponen
-mejoras futuras como integración mediante VPC o VPN privada y uso de Managed
+mejoras futuras como integración mediante VPC o VPN y uso de Managed
 Instance Groups.
 
 Para este proyecto se utilizó hardware local para pruebas con el Worker GPU y se puede ejecutar con Docker Compose si se tiene el hardware compatible y [CUDA ToolKit](https://developer.nvidia.com/cuda/toolkit) instalado. Para un entorno productivo real simplemente se puede mudar la imagen Docker a una VM que soporte este tipo de Hardware.
@@ -85,15 +85,17 @@ Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del
 
 ## Documentación
 
+### [Consigna del trabajo](https://drive.google.com/file/d/1MRHyacNmx8XRIm6SIeHQY_1l-WEYR-Dx/view?usp=sharing)
+
+### [Informe Final](https://drive.google.com/file/d/16u9M8bSoj8KVOskL-DjvvHXRzyw-ledR/view?usp=sharing)
+
 ### Diagrama de alto nivel
 ![Diagrama de alto nivel](diagramas/DiagramaAltoNivel.png)
 
 ### Diagrama de bajo nivel
-![Diagrama de alto nivel](diagramas/DiagramaBajoNivel.png)
+![Diagrama de bajo nivel](diagramas/DiagramaBajoNivel.png)
 
-### [Informe Final](https://drive.google.com/file/d/16u9M8bSoj8KVOskL-DjvvHXRzyw-ledR/view?usp=sharing)
 
-### [Consigna](https://drive.google.com/file/d/1MRHyacNmx8XRIm6SIeHQY_1l-WEYR-Dx/view?usp=sharing)
 
 ##  Tecnologías utilizadas
 
