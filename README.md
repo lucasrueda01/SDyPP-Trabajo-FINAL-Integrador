@@ -64,7 +64,7 @@ workers externos se conectan mediante endpoints públicos. Se proponen
 mejoras futuras como integración mediante VPC o VPN y uso de Managed
 Instance Groups.
 
-Para este proyecto se utilizó hardware local para pruebas con el Worker GPU y se puede ejecutar con Docker Compose si se tiene el hardware compatible y [CUDA ToolKit](https://developer.nvidia.com/cuda/toolkit) instalado. Para un entorno productivo real simplemente se puede mudar la imagen Docker a una VM que soporte este tipo de Hardware.
+Para este proyecto se utilizó hardware local para pruebas con el Worker GPU y se puede ejecutar con el ([Docker Compose](/docker-compose-gpu.yaml) si se tiene el hardware compatible y [CUDA ToolKit](https://developer.nvidia.com/cuda/toolkit) instalado. Para un entorno productivo real simplemente se puede mudar la imagen Docker a una VM que soporte este tipo de Hardware.
 
 ## Links
 

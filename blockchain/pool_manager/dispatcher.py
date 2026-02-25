@@ -87,7 +87,7 @@ def dispatch_to_workers(block, alive_workers, channel):
     # MODO COOPERATIVO
     logger.debug("Despachando %s en COOPERATIVO", block_id)
 
-    # total_workers ahora es simple
+    # total_workers
     total_workers = len(alive_workers)
 
     payloads = fragmentar(block, total_workers)

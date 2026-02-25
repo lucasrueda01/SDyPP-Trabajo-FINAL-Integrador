@@ -25,11 +25,11 @@ def processPackages(bucket):
         try:
             metrics.update_uptime()
 
-            # 1️⃣ Obtener head actual
+            # 1) Obtener head actual
             last = getUltimoBlock()
             prev_hash = last["blockchainContent"] if last else "0"
 
-            # 2️⃣ Intentar lock antes de consumir
+            # 2) Intentar lock antes de consumir
             lock_key = f"create_lock:{prev_hash}"
             lock_acquired = redis.set(lock_key, "1", nx=True, ex=10)
 
@@ -37,7 +37,7 @@ def processPackages(bucket):
                 time.sleep(0.1)
                 continue
 
-            # 3️⃣ Consumir con ventana temporal
+            # 3) Consumir con ventana temporal
             txs = []
             start_time = time.time()
 
@@ -57,7 +57,7 @@ def processPackages(bucket):
                     txs.append(json.loads(body))
                     channel.basic_ack(method_frame.delivery_tag)
                 else:
-                    # No hay mensaje → evaluar ventana temporal
+                    # No hay mensaje -> evaluar ventana temporal
                     if time.time() - start_time > MAX_WAIT_SECONDS:
                         break
                     time.sleep(0.05)
@@ -66,7 +66,7 @@ def processPackages(bucket):
                 time.sleep(0.2)
                 continue
 
-            # 4️⃣ Determinar dificultad
+            # 4) Determinar dificultad
             runtime_config = get_runtime_config()
 
             if runtime_config["difficulty"] > 0:
@@ -77,7 +77,7 @@ def processPackages(bucket):
                     settings.DIFFICULTY_LOW if gpus == 0 else settings.DIFFICULTY_HIGH
                 )
 
-            # 5️⃣ Construcción del bloque
+            # 5) Construcción del bloque
             blockId = str(uuid.uuid4())
 
             block = {
@@ -112,7 +112,7 @@ def processPackages(bucket):
 
             subirBlock(bucket, block)
 
-            # 6️⃣ Publicar a pool manager
+            # 6) Publicar a pool manager
             try:
                 publicar_a_pool_manager(block)
             except Exception:

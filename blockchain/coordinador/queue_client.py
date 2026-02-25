@@ -101,7 +101,7 @@ def publicar_a_pool_manager(block):
     )
 
     try:
-        # 🔎 Validar conexión y canal
+        # Validar conexión y canal
         init_publisher()
 
         _channel.basic_publish(
@@ -117,10 +117,10 @@ def publicar_a_pool_manager(block):
         logger.warning(f"Error publicando bloque {block['blockId']}: {e}")
         logger.info("Reintentando publicación tras reconectar...")
 
-        # 🔁 Forzar reconexión
+        # Forzar reconexión
         _connection, _channel = queueConnect()
 
-        # 🔁 Reintento
+        # Reintento
         _channel.basic_publish(
             exchange="",
             routing_key="pool_tasks",

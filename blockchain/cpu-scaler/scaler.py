@@ -205,7 +205,7 @@ def reconcile(redis_client):
 
         age = now - last_seen
 
-        # 🔴 Solo considerar realmente vivo si no expiró
+        # Solo considerar realmente vivo si no expiró
         if age > settings.HEARTBEAT_TTL:
             continue
 
