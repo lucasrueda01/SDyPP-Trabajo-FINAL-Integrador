@@ -7,7 +7,7 @@ import logging
 import metrics
 import config.settings as settings
 from queue_client import queueConnect, publicar_a_pool_manager
-from redis_client import get_redis, getUltimoBlock, gpus_vivas, get_runtime_config
+from redis_client import get_redis, getUltimoBlock, workers_vivos, get_runtime_config
 from storage_client import subirBlock
 
 logger = logging.getLogger("coordinator")
@@ -72,7 +72,7 @@ def processPackages(bucket):
             if runtime_config["difficulty"] > 0:
                 difficulty = runtime_config["difficulty"]
             else:
-                gpus = gpus_vivas()
+                cpus, gpus = workers_vivos()
                 difficulty = (
                     settings.DIFFICULTY_LOW if gpus == 0 else settings.DIFFICULTY_HIGH
                 )

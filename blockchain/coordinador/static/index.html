@@ -178,70 +178,79 @@
       </div>
     </header>
 
-      <!-- CONFIG -->
-      <div class="card">
-        <h3>Configuración del Sistema</h3>
+    <!-- CONFIG -->
+    <div class="card">
+      <h3>Configuración del Sistema</h3>
 
-        <input
-          id="fragmentPercent"
-          type="number"
-          step="0.01"
-          min="0.01"
-          max="0.5"
-          placeholder="Fragment %"
-        />
-        <input id="maxRandom" type="number" placeholder="Max Random" />
-        <input
-          id="difficulty"
-          type="number"
-          placeholder="Difficulty (0 = dinámica)"
-        />
+      <input
+        id="fragmentPercent"
+        type="number"
+        step="0.01"
+        min="0.01"
+        max="0.5"
+        placeholder="Fragment %"
+      />
+      <input id="maxRandom" type="number" placeholder="Max Random" />
+      <input
+        id="difficulty"
+        type="number"
+        placeholder="Difficulty (0 = dinámica)"
+      />
 
-        <select id="miningMode">
-          <option value="cooperative">Modo: Cooperativo</option>
-          <option value="competitive">Modo: Competitivo</option>
-        </select>
+      <select id="miningMode">
+        <option value="cooperative">Modo: Cooperativo</option>
+        <option value="competitive">Modo: Competitivo</option>
+      </select>
 
-        <button onclick="updateConfig()">Actualizar Configuración</button>
+      <button onclick="updateConfig()">Actualizar Configuración</button>
 
-        <div class="config-display" id="currentConfig">
-          Configuración actual: -
-        </div>
+      <div class="config-display" id="currentConfig">
+        Configuración actual: -
+      </div>
+    </div>
+
+    <!-- TRANSACCIÓN -->
+    <div class="card">
+      <h3>Enviar Transacción</h3>
+      <input id="origen" placeholder="Origen" />
+      <input id="destino" placeholder="Destino" />
+      <input id="monto" type="number" placeholder="Monto" />
+      <button onclick="enviar()">Enviar</button>
+    </div>
+
+    <!-- BATCH -->
+    <div class="card">
+      <h3>Enviar Batch</h3>
+      <input
+        id="batchCantidad"
+        type="number"
+        placeholder="Cantidad de transacciones"
+      />
+      <button onclick="enviarBatch()">Enviar Batch</button>
+    </div>
+
+    <!-- ESTADO -->
+    <div class="card">
+      <h3>Estado</h3>
+      <div class="stats">
+      <div class="stat-box">
+        <div>Altura Blockchain</div>
+        <h2 id="height">0</h2>
       </div>
 
-      <!-- TRANSACCIÓN -->
-      <div class="card">
-        <h3>Enviar Transacción</h3>
-        <input id="origen" placeholder="Origen" />
-        <input id="destino" placeholder="Destino" />
-        <input id="monto" type="number" placeholder="Monto" />
-        <button onclick="enviar()">Enviar</button>
+      <div class="stat-box">
+        <div>Último Hash</div>
+        <h2 id="lastHash">-</h2>
       </div>
 
-      <!-- BATCH -->
-      <div class="card">
-        <h3>Enviar Batch</h3>
-        <input
-          id="batchCantidad"
-          type="number"
-          placeholder="Cantidad de transacciones"
-        />
-        <button onclick="enviarBatch()">Enviar Batch</button>
+      <div class="stat-box">
+        <div>Workers Activos</div>
+        <h2>
+          <span id="cpuCount">0</span> CPU |
+          <span id="gpuCount">0</span> GPU
+        </h2>
       </div>
-
-      <!-- ESTADO -->
-      <div class="card">
-        <h3>Estado</h3>
-        <div class="stats">
-          <div class="stat-box">
-            <div>Altura Blockchain</div>
-            <h2 id="height">0</h2>
-          </div>
-          <div class="stat-box">
-            <div>Último Hash</div>
-            <h2 id="lastHash">-</h2>
-          </div>
-        </div>
+    </div>
 
         <button onclick="loadBlockchain()">🔄 Refrescar Blockchain</button>
         <button
@@ -354,7 +363,7 @@
       async function enviarBatch() {
         const cantidad = parseInt(batchCantidad.value);
         const batchSize = 100;
-        const delayBetweenBatches = 0
+        const delayBetweenBatches = 0;
 
         for (let i = 0; i < cantidad; i += batchSize) {
           const requests = [];
@@ -510,9 +519,26 @@
         }
       }
 
+      async function loadWorkers() {
+        if (!API_URL) return;
+
+        try {
+          const res = await fetch(`${API_URL}/admin/workers`);
+          const data = await res.json();
+
+          cpuCount.innerText = data.cpu ?? 0;
+          gpuCount.innerText = data.gpu ?? 0;
+        } catch (err) {
+          cpuCount.innerText = "-";
+          gpuCount.innerText = "-";
+        }
+      }
+
       setInterval(checkStatus, 5000);
       setInterval(loadHeight, 5000);
       loadConfig();
+      setInterval(loadWorkers, 5000);
+      loadWorkers();
     </script>
   </body>
 </html>

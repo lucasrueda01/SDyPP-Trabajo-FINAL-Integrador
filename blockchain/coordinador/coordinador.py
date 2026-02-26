@@ -1,6 +1,6 @@
 import logging
 import sys
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from prometheus_client import start_http_server
 from redis_client import (
@@ -9,19 +9,19 @@ from redis_client import (
     get_redis,
     reset_blockchain_state,
     update_runtime_config,
+    workers_vivos,
+    get_runtime_config,
+    redisConnect,
 )
 import metrics
 import threading
 
 import config.settings as settings
-from redis_client import get_runtime_config
 from consensus_service import procesar_resultado_worker
 from queue_client import encolar, init_publisher
-from redis_client import redisConnect
 from storage_client import bucketConnect
 from blockchain_service import validarTransaction
 from worker_loop import processPackages
-from flask import send_from_directory
 
 start_http_server(8000)
 
@@ -107,6 +107,13 @@ def reset_blockchain():
     except Exception as e:
         logger.exception("Error reseteando blockchain")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/admin/workers", methods=["GET"])
+def get_workers():
+    cpus, gpus = workers_vivos()
+    return jsonify({"cpu": cpus, "gpu": gpus})
+
 
 @app.route("/")
 def serve_frontend():

@@ -71,14 +71,22 @@ def is_block_sealed(block_id):
     return False
 
 
-def gpus_vivas():
+def workers_vivos():
     client = get_redis()
-    count = 0
+
+    gpus = 0
+    cpus = 0
+
     for key in client.scan_iter("worker:*"):
         data = client.hgetall(key)
-        if data.get(b"type") == b"gpu":
-            count += 1
-    return count
+        worker_type = data.get(b"type")
+
+        if worker_type == b"gpu":
+            gpus += 1
+        elif worker_type == b"cpu":
+            cpus += 1
+
+    return cpus, gpus
 
 
 def get_blockchain():
@@ -115,6 +123,7 @@ def update_runtime_config(new_config):
     pipe.execute()
     logger.debug("Runtime config actualizada: %s", new_config)
 
+
 def reset_blockchain_state():
     redis_client = get_redis()
     deleted = 0
@@ -130,6 +139,6 @@ def reset_blockchain_state():
         for key in redis_client.scan_iter(pattern):
             redis_client.delete(key)
             deleted += 1
-            
+
     metrics.set_block_height(0)
     return deleted
