@@ -134,9 +134,9 @@ Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del
 [![Loki](https://img.shields.io/badge/Loki-000000?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/oss/loki/)
 
 
-## API REST -- Nodo Coordinador (NCT)
+## API REST - Nodo Coordinador
 
-El Nodo Coordinador (NCT) expone una API REST encargada de:
+El Nodo Coordinador expone una API REST encargada de:
 
 -   Validar y encolar transacciones.
 -   Coordinar el consenso Proof of Work (PoW).
@@ -151,6 +151,15 @@ El Nodo Coordinador (NCT) expone una API REST encargada de:
 
 Recibe una transacción en formato JSON.
 
+**Payload esperado:**
+
+```json
+{
+  "origen": "Lucas",
+  "destino": "Matias",
+  "monto": 10000
+}
+```
 
 Respuestas: - `202 Accepted` → Transacción aceptada. - `400 Bad Request`
 → Transacción inválida.
@@ -196,9 +205,16 @@ dificultad, tamaño de bloque, etc.).
 
 Permite actualizar parámetros en runtime sin reiniciar el sistema.
 
-Respuesta:
+**Payload esperado:**
 
-{ "status": "updated" }
+```json
+{
+  "fragment_percent": 0.5,
+  "max_random": 9999999,
+  "difficulty": 5,
+  "mining_mode": "competitive" OR "cooperative"
+}
+```
 
 ------------------------------------------------------------------------
 
@@ -207,11 +223,11 @@ Respuesta:
 Endpoint administrativo para reiniciar el estado completo de la
 blockchain.
 
-Función: - Elimina bloques almacenados en Redis. - Reinicia estado
+Elimina bloques almacenados en Redis y reinicia estado
 interno.
 
 ------------------------------------------------------------------------
 
 ### GET `/`
 
-Sirve el frontend estático (`index.html`) desde la carpeta `/static`.
+Sirve al frontend estático (`index.html`) desde la carpeta `/static`.
