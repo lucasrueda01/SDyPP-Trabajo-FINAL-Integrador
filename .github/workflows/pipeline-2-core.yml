@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 🔐 Auth GCP
+      # Auth GCP
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -30,7 +30,7 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           install_components: gke-gcloud-auth-plugin
 
-      # 🔧 Terraform (para outputs)
+      # Terraform (para outputs)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -42,24 +42,24 @@ jobs:
           terraform init -input=false
           echo "INGRESS_IP=$(terraform output -raw ingress_ip)" >> $GITHUB_ENV
 
-      # 📦 Instalar Helm
+      # Instalar Helm
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-      # 🎯 Get kubeconfig
+      # Get kubeconfig
       - name: Get GKE credentials
         run: |
           gcloud container clusters get-credentials $CLUSTER_NAME \
             --zone $CLUSTER_ZONE \
             --project $PROJECT_ID
 
-      # 📁 Namespace monitoring
+      # Namespace monitoring
       - name: Create monitoring namespace
         run: |
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
       # ===============================
-      # 2️⃣ Crear ConfigMap TCP para Rabbit
+      # Crear ConfigMap TCP para Rabbit
       # ===============================
       - name: Create TCP ConfigMap for RabbitMQ
         run: |
@@ -71,7 +71,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
-      # 🐰 Install RabbitMQ Cluster Operator (kubectl apply)
+      # Install RabbitMQ Cluster Operator (kubectl apply)
       # ====================================
       - name: Install RabbitMQ Cluster Operator
         run: |
@@ -82,7 +82,7 @@ jobs:
           kubectl rollout status deployment/rabbitmq-cluster-operator \
             -n rabbitmq-system --timeout=300s
 
-      # 🧹 Delete existing ingress Service to avoid Helm conflict
+      # Delete existing ingress Service to avoid Helm conflict
       - name: Delete existing ingress Service (avoid Helm conflict)
         run: |
           kubectl delete svc ingress-nginx-controller \
@@ -90,7 +90,7 @@ jobs:
             --ignore-not-found=true
 
       # ===============================
-      # 1️⃣ Instalar Ingress NGINX
+      # Instalar Ingress NGINX
       # ===============================
       - name: Install Ingress Controller
         run: |
@@ -111,7 +111,7 @@ jobs:
           kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx
 
       # ====================================
-      # 🔐 Create GHCR Image Pull Secret
+      # Create GHCR Image Pull Secret
       # ====================================
       - name: Create GHCR Secret
         run: |
@@ -123,7 +123,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
-      # 🌐 Create blockchain-ingress-config
+      # Create blockchain-ingress-config
       # ====================================
       - name: Create Ingress ConfigMap
         run: |
@@ -133,7 +133,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # ====================================
-      # 1️⃣ Core (Redis + RabbitMQ)
+      # Core (Redis + RabbitMQ)
       # ====================================
       - name: Apply Core Manifests
         run: |
@@ -151,7 +151,7 @@ jobs:
             -n ingress-nginx --timeout=300s
 
       # ===============================
-      # 3️⃣ Aplicar Ingress
+      # Aplicar Ingress
       # ===============================
       - name: Apply App Ingress
         run: |
@@ -162,7 +162,7 @@ jobs:
           envsubst < $K8S_MONITORING_DIR/grafana-ingress.yaml | kubectl apply -f -
 
       # ====================================
-      # 2️⃣ Monitoring
+      # Monitoring
       # ====================================
 
       - name: Add Helm repos
@@ -171,7 +171,7 @@ jobs:
           helm repo add grafana https://grafana.github.io/helm-charts
           helm repo update
 
-      # 🚀 Prometheus + Grafana
+      # Prometheus + Grafana
       - name: Install kube-prometheus-stack
         run: |
           helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
@@ -180,7 +180,7 @@ jobs:
                 -f $K8S_MONITORING_DIR/values-prometheus.yaml
 
 
-      # 🚀 Loki
+      # Loki
       - name: Install Loki
         run: |
           helm upgrade --install loki \
@@ -188,7 +188,7 @@ jobs:
             -n monitoring \
             -f $K8S_MONITORING_DIR/values-loki.yaml
 
-      # 🚀 Promtail
+      # Promtail
       - name: Install Promtail
         run: |
           helm upgrade --install promtail \
@@ -197,14 +197,14 @@ jobs:
             -f $K8S_MONITORING_DIR/values-promtail.yaml
 
 
-      # ⏳ Esperar Grafana
+      # Esperar Grafana
       - name: Wait for Grafana
         run: |
           kubectl wait --for=condition=Available deployment/kube-prometheus-stack-grafana \
                 -n monitoring --timeout=300s
 
       # ====================================
-      # 3️⃣ Ingress de Grafana y Prometheus
+      # Ingress de Grafana y Prometheus
       # ====================================
       - name: Apply Grafana Ingress
         run: |
@@ -215,14 +215,14 @@ jobs:
           envsubst < $K8S_MONITORING_DIR/prometheus-ingress.yaml | kubectl apply -f -
 
       # ====================================
-      # 3️⃣ Aplicar ServiceMonitors
+      # Aplicar ServiceMonitors
       # ====================================
       - name: Apply ServiceMonitors
         run: |
           kubectl apply -f $K8S_MONITORING_DIR/servicemonitors/
 
       # ====================================
-      # 4️⃣ Verificación final
+      # Verificación final
       # ====================================
       - name: Verify Core
         run: |
@@ -237,7 +237,7 @@ jobs:
         run: |
           kubectl get svc -n ingress-nginx
 
-      # 🔍 Output final
+      # Output final
       - name: Show access URLs
         run: |
           echo "Coordinator: http://coordinator.${INGRESS_IP}.nip.io"
