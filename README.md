@@ -132,3 +132,86 @@ Una vez desplegado el proyecto a traves de los pipelines, se puede hacer uso del
 [![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
 [![Loki](https://img.shields.io/badge/Loki-000000?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/oss/loki/)
+
+
+## API REST -- Nodo Coordinador (NCT)
+
+El Nodo Coordinador (NCT) expone una API REST encargada de:
+
+-   Validar y encolar transacciones.
+-   Coordinar el consenso Proof of Work (PoW).
+-   Verificar resultados enviados por los workers (CPU/GPU).
+-   Persistir bloques en Redis.
+-   Exponer métricas y estado del sistema.
+-   Permitir configuración dinámica en runtime.
+
+------------------------------------------------------------------------
+
+### POST `/transaction`
+
+Recibe una transacción en formato JSON.
+
+
+Respuestas: - `202 Accepted` → Transacción aceptada. - `400 Bad Request`
+→ Transacción inválida.
+
+------------------------------------------------------------------------
+
+### GET `/blockchain`
+
+Devuelve la blockchain completa almacenada en Redis.
+
+Respuesta: Lista de bloques confirmados.
+
+------------------------------------------------------------------------
+
+### GET `/blockchain/height`
+
+Devuelve la altura actual de la blockchain.
+
+Ejemplo de respuesta:
+
+{ "height": 15 }
+
+------------------------------------------------------------------------
+
+### GET `/status`
+
+Health check del coordinador.
+
+Respuesta:
+
+{ "status": "OK" }
+
+------------------------------------------------------------------------
+
+### GET `/config`
+
+Devuelve la configuración dinámica actual del sistema (por ejemplo:
+dificultad, tamaño de bloque, etc.).
+
+------------------------------------------------------------------------
+
+### POST `/config`
+
+Permite actualizar parámetros en runtime sin reiniciar el sistema.
+
+Respuesta:
+
+{ "status": "updated" }
+
+------------------------------------------------------------------------
+
+### POST `/admin/reset-blockchain`
+
+Endpoint administrativo para reiniciar el estado completo de la
+blockchain.
+
+Función: - Elimina bloques almacenados en Redis. - Reinicia estado
+interno.
+
+------------------------------------------------------------------------
+
+### GET `/`
+
+Sirve el frontend estático (`index.html`) desde la carpeta `/static`.
