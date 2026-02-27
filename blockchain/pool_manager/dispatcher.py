@@ -75,11 +75,10 @@ def dispatch_to_workers(block, alive_workers, channel):
             block.get("nonce_end", settings.MAX_RANDOM),
         )
         
-        safe_publish(
-            channel,
-            "blocks_competitive",
-            "",
-            json.dumps(block),
+        channel.basic_publish(
+            exchange="blocks_competitive",
+            routing_key="",
+            body=json.dumps(block),
         )
 
         return True
@@ -102,11 +101,10 @@ def dispatch_to_workers(block, alive_workers, channel):
             payload["nonce_end"],
         )
 
-        safe_publish(
-            channel,
-            "blocks_cooperative",
-            "",
-            json.dumps(payload),
+        channel.basic_publish(
+            exchange="blocks_cooperative",
+            routing_key="",
+            body=json.dumps(payload),
         )
 
     return True

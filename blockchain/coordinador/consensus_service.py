@@ -101,6 +101,7 @@ def procesar_resultado_worker(data, bucket):
         block = descargarBlock(bucket, block_id)
 
         if block is None:
+            # Si no existe es porque ya fue sellado y borrado. Se sella y libera por si acaso
             redisClient.set(status_key, "SEALED")
             release_claim(claim_key, worker_id)
 
@@ -118,7 +119,7 @@ def procesar_resultado_worker(data, bucket):
 
             return {"message": "Bloque ya cerrado"}, 202
 
-        # Calcular UNA sola vez el create_lock
+        # Lock que fue creado en worker_loop al construir el bloque. Se libera al finalizar
         lock_key = f"create_lock:{block['blockchainContent']}"
 
         # 4) Validar hash
@@ -233,6 +234,5 @@ def procesar_resultado_worker(data, bucket):
         return {"message": "Error interno"}, 500
 
     finally:
-        # Liberar create_lock UNA sola vez
         if lock_key:
             redisClient.delete(lock_key)

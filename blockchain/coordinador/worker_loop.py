@@ -72,7 +72,7 @@ def processPackages(bucket):
             if runtime_config["difficulty"] > 0:
                 difficulty = runtime_config["difficulty"]
             else:
-                cpus, gpus = workers_vivos()
+                _, gpus = workers_vivos()
                 difficulty = (
                     settings.DIFFICULTY_LOW if gpus == 0 else settings.DIFFICULTY_HIGH
                 )
@@ -103,12 +103,8 @@ def processPackages(bucket):
             )
 
             redis.set(f"block:{blockId}:status", "PENDING")
-            redis.set(f"block:{blockId}:prev_hash", prev_hash)
-            redis.set(f"block:{blockId}:created_at", time.time())
             
             metrics.record_block_created()
-            pending_count = len(redis.keys("block:*:status"))
-            metrics.set_pending_blocks(pending_count)
 
             subirBlock(bucket, block)
 

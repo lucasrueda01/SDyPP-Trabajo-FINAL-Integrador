@@ -67,12 +67,3 @@ def queue_connect(retries=10, delay=3):
             time.sleep(delay)
 
     raise Exception("No se pudo conectar a RabbitMQ")
-
-
-def safe_publish(channel, exchange, routing_key, body):
-    channel.basic_publish(
-        exchange=exchange,
-        routing_key=routing_key,
-        body=body,
-        properties=pika.BasicProperties(delivery_mode=2),
-    )
