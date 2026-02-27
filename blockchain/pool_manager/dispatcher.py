@@ -1,7 +1,6 @@
 import json
 import logging
 import config.settings as settings
-from rabbitmq import safe_publish
 
 logger = logging.getLogger("pool-manager")
 
