@@ -154,7 +154,7 @@ def procesar_resultado_worker(data, bucket):
             orphan_key = f"block:{block_id}:orphaned"
             was_set = redisClient.set(orphan_key, "1", nx=True)
 
-            if was_set:
+            if was_set and not existBlock(block_id):
                 logger.debug(
                     "Reencolando %d txs del bloque huérfano %s",
                     len(block["transactions"]),
